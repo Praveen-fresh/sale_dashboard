@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skandan Enterprise – CKs Bakery</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --navy: #0f1b2d;
+  --navy2: #162236;
+  --navy3: #1e2f45;
+  --amber: #f5a623;
+  --amber2: #e8941a;
+  --green: #22c55e;
+  --red: #ef4444;
+  --blue: #3b82f6;
+  --text: #f0f4f8;
+  --text2: #94a3b8;
+  --text3: #64748b;
+  --border: rgba(255,255,255,0.08);
+  --card: #1a2d44;
+  --card2: #152338;
+  --input-bg: #0f1b2d;
+  --radius: 10px;
+  --radius-lg: 14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);font-size:14px;}
+a{color:inherit;text-decoration:none;}
+
+/* Layout */
+.layout{display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:220px;flex-shrink:0;background:var(--navy2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+.main{flex:1;overflow-y:auto;background:var(--navy);}
+
+/* Sidebar */
+.sb-brand{padding:20px 18px 16px;border-bottom:1px solid var(--border);}
+.sb-brand-name{font-family:'DM Serif Display',serif;font-size:17px;color:var(--text);line-height:1.2;}
+.sb-brand-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.sb-month{margin:12px 10px 4px;padding:8px 10px;background:rgba(245,166,35,0.12);border-radius:8px;border:1px solid rgba(245,166,35,0.2);}
+.sb-month-label{font-size:10px;color:var(--amber);font-weight:600;letter-spacing:.06em;text-transform:uppercase;}
+.sb-month-val{font-size:13px;color:var(--text);font-weight:500;margin-top:2px;}
+.sb-nav{padding:8px 10px;flex:1;}
+.sb-section{font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:14px 8px 6px;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--text2);font-size:13px;font-weight:400;transition:all .15s;margin-bottom:1px;}
+.nav-item:hover{background:var(--navy3);color:var(--text);}
+.nav-item.active{background:rgba(245,166,35,0.15);color:var(--amber);font-weight:500;}
+.nav-icon{width:16px;height:16px;opacity:.7;}
+.nav-item.active .nav-icon{opacity:1;}
+.sb-bottom{padding:12px 10px;border-top:1px solid var(--border);}
+
+/* Page header */
+.page-header{padding:24px 28px 0;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.page-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--text);}
+.page-sub{font-size:12px;color:var(--text3);margin-top:3px;}
+.header-actions{display:flex;gap:8px;align-items:center;}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.btn-primary{background:var(--amber);color:#0f1b2d;}
+.btn-primary:hover{background:var(--amber2);}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--navy3);color:var(--text);}
+.btn-danger{background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.2);}
+.btn-danger:hover{background:rgba(239,68,68,0.25);}
+.btn-success{background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.2);}
+.btn-success:hover{background:rgba(34,197,94,0.25);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+
+/* Content sections */
+.content{padding:20px 28px 40px;}
+.section{display:none;}
+.section.active{display:block;}
+
+/* Metric cards */
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px;}
+.metric-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;}
+.metric-card.accent{border-color:rgba(245,166,35,0.3);background:rgba(245,166,35,0.06);}
+.m-label{font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.m-value{font-size:22px;font-weight:600;color:var(--text);}
+.m-sub{font-size:11px;margin-top:4px;}
+.m-sub.up{color:var(--green);}
+.m-sub.down{color:var(--red);}
+.m-sub.neutral{color:var(--text3);}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;}
+.card-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;}
+
+/* Tables */
+.table-wrap{overflow-x:auto;border-radius:var(--radius);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:var(--navy3);color:var(--text3);font-weight:500;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:rgba(255,255,255,0.025);}
+.tr-tot td{font-weight:600;background:var(--navy3);color:var(--text);}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;}
+.badge-green{background:rgba(34,197,94,0.15);color:#4ade80;}
+.badge-red{background:rgba(239,68,68,0.15);color:#f87171;}
+.badge-amber{background:rgba(245,166,35,0.15);color:var(--amber);}
+.badge-blue{background:rgba(59,130,246,0.15);color:#60a5fa;}
+.badge-gray{background:rgba(148,163,184,0.15);color:var(--text2);}
+
+/* Forms */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group.full{grid-column:1/-1;}
+label{font-size:12px;color:var(--text2);font-weight:500;}
+input,select,textarea{background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;width:100%;transition:border .15s;outline:none;}
+input:focus,select:focus,textarea:focus{border-color:var(--amber);}
+select option{background:var(--navy2);}
+textarea{resize:vertical;min-height:70px;}
+
+/* Chart wrapper */
+.chart-wrap{position:relative;width:100%;height:220px;}
+
+/* Week accordion */
+.week-block{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:10px;overflow:hidden;}
+.week-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;user-select:none;}
+.week-head:hover{background:rgba(255,255,255,0.03);}
+.week-head-left{display:flex;align-items:center;gap:12px;}
+.week-num{font-size:11px;font-weight:600;color:var(--amber);letter-spacing:.05em;text-transform:uppercase;}
+.week-range{font-size:13px;color:var(--text);}
+.week-stats-row{display:flex;gap:18px;flex-wrap:wrap;}
+.ws{font-size:12px;color:var(--text3);}
+.ws span{color:var(--text);font-weight:500;}
+.week-body{padding:0 18px 16px;display:none;}
+.week-body.open{display:block;}
+.chevron{transition:transform .2s;color:var(--text3);font-size:16px;}
+.chevron.open{transform:rotate(180deg);}
+
+/* PO cards */
+.po-grid{display:grid;gap:12px;}
+.po-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;}
+.po-card-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
+.po-num{font-size:12px;color:var(--amber);font-weight:600;}
+.po-vendor{font-size:14px;font-weight:500;color:var(--text);margin-top:2px;}
+.po-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;}
+.po-meta-item{font-size:11px;color:var(--text3);}
+.po-meta-item span{display:block;color:var(--text);font-size:13px;font-weight:500;margin-top:2px;}
+.po-actions{display:flex;gap:6px;margin-top:12px;}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;}
+.modal-title{font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;}
+.modal-close{cursor:pointer;color:var(--text3);font-size:20px;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:13px;color:var(--text);z-index:200;transform:translateY(100px);opacity:0;transition:all .3s;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{border-color:rgba(34,197,94,0.4);background:rgba(34,197,94,0.1);}
+.toast.error{border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.1);}
+
+/* Alert */
+.alert{padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;}
+.alert-info{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);color:#93c5fd;}
+
+/* Divider */
+.divider{border:none;border-top:1px solid var(--border);margin:20px 0;}
+
+/* Empty state */
+.empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty-icon{font-size:36px;margin-bottom:10px;}
+
+/* Print */
+@media print{
+  .sidebar,.header-actions,.btn,.modal-overlay,.toast{display:none!important;}
+  .main{overflow:visible;}
+  .content{padding:0;}
+  body,html{background:white!important;color:black!important;}
+  .card,.week-block,.po-card,.metric-card{background:white!important;border:1px solid #ddd!important;color:black!important;break-inside:avoid;}
+  .week-body{display:block!important;}
+  th{background:#f0f0f0!important;color:#333!important;}
+  td{color:#111!important;}
+  .m-value,.m-label,.week-range,.ws,.po-vendor{color:#111!important;}
+}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--navy3);border-radius:4px;}
+
+/* Responsive */
+@media(max-width:640px){
+  .sidebar{width:180px;}
+  .content,.page-header{padding-left:16px;padding-right:16px;}
+  .form-grid{grid-template-columns:1fr;}
+  .po-meta{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-brand">
+    <div class="sb-brand-name">CKs Bakery</div>
+    <div class="sb-brand-sub">Skandan Enterprise</div>
+  </div>
+  <div class="sb-month" id="sb-month-info">
+    <div class="sb-month-label">Current Month</div>
+    <div class="sb-month-val" id="sb-month-name">May 2026</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-section">Overview</div>
+    <div class="nav-item active" data-section="dashboard">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </div>
+    <div class="sb-section">Manage</div>
+    <div class="nav-item" data-section="daily">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Daily Entry
+    </div>
+    <div class="nav-item" data-section="po">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+      PO Manager
+    </div>
+    <div class="sb-section">Reports</div>
+    <div class="nav-item" data-section="weekly">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-8"/></svg>
+      Weekly Report
+    </div>
+    <div class="nav-item" data-section="monthly">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      Monthly Report
+    </div>
+  </nav>
+  <div class="sb-bottom">
+    <div style="font-size:11px;color:var(--text3);text-align:center;">Franchise Sales Tracker v1.0</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- DASHBOARD -->
+<section class="section active" id="section-dashboard">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub" id="dash-period">Overview · May 2026</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">&#x1F5A8; Print</button>
+      <button class="btn btn-primary btn-sm" onclick="showSection('daily')">+ Add Today</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="metric-grid" id="dash-metrics"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;" id="dash-charts-row">
+      <div class="card">
+        <div class="card-title">Daily sales vs expenses</div>
+        <div class="chart-wrap"><canvas id="chartSalesExp" role="img" aria-label="Daily sales and expenses"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Balance trend</div>
+        <div class="chart-wrap"><canvas id="chartBalance" role="img" aria-label="Cumulative balance"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        Recent entries
+        <button class="btn btn-ghost btn-sm" onclick="showSection('daily')">View all</button>
+      </div>
+      <div class="table-wrap"><table id="dash-recent-table">
+        <thead><tr><th>Date</th><th>Sale</th><th>Online</th><th>Cash</th><th>Expense</th><th>Net</th><th>Wastage</th><th>Remark</th></tr></thead>
+        <tbody id="dash-recent-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<!-- DAILY ENTRY -->
+<section class="section" id="section-daily">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Daily Entry</div>
+      <div class="page-sub">Add or edit daily sales, expenses & wastage</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" onclick="openEntryModal()">+ Add Entry</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="alert alert-info">Tip: Enter online and cash sales separately. Expenses include stock, rent, utilities and other payments. Wastage is the value of unsold/disposed products.</div>
+    <div class="card">
+      <div class="card-title">
+        All daily entries
+        <span id="entry-count" style="font-size:12px;color:var(--text3);font-weight:400;"></span>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Date</th><th>Sale (₹)</th><th>Online (₹)</th><th>Cash (₹)</th><th>Expense (₹)</th><th>Net (₹)</th><th>Wastage (₹)</th><th>Balance (₹)</th><th>Remark</th><th>Actions</th></tr></thead>
+        <tbody id="entries-body"></tbody>
+        <tfoot id="entries-foot"></tfoot>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<!-- PO MANAGER -->
+<section class="section" id="section-po">
+  <div class="page-header">
+    <div>
+      <div class="page-title">PO Manager</div>
+      <div class="page-sub">Track weekly purchase orders & stock inflow</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" onclick="openPOModal()">+ New PO</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="metric-grid" id="po-metrics"></div>
+    <div id="po-list"></div>
+  </div>
+</section>
+
+<!-- WEEKLY REPORT -->
+<section class="section" id="section-weekly">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Weekly Report</div>
+      <div class="page-sub">Week-by-week breakdown with PO summary</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">&#x1F5A8; Print Report</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">Weekly performance</div>
+      <div class="chart-wrap" style="height:240px;"><canvas id="chartWeekly" role="img" aria-label="Weekly sales vs expenses"></canvas></div>
+    </div>
+    <div id="weekly-blocks"></div>
+  </div>
+</section>
+
+<!-- MONTHLY REPORT -->
+<section class="section" id="section-monthly">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Monthly Report</div>
+      <div class="page-sub">Full monthly summary – printable</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">&#x1F5A8; Print</button>
+    </div>
+  </div>
+  <div class="content">
+    <div id="monthly-content"></div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<!-- ENTRY MODAL -->
+<div class="modal-overlay" id="entry-modal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="entry-modal-title">Add Daily Entry</span>
+      <span class="modal-close" onclick="closeModal('entry-modal')">&#x2715;</span>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Date *</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="form-group">
+        <label>Online Sale (₹)</label>
+        <input type="number" id="f-online" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>Cash Sale (₹)</label>
+        <input type="number" id="f-cash" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>Total Sale (₹) <span style="color:var(--text3);font-weight:400;">(auto)</span></label>
+        <input type="number" id="f-sale" placeholder="0" readonly style="opacity:.6;">
+      </div>
+      <div class="form-group">
+        <label>Expense (₹)</label>
+        <input type="number" id="f-expense" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>Wastage (₹)</label>
+        <input type="number" id="f-wastage" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>In Account (₹) <span style="color:var(--text3);font-weight:400;">bank/online</span></label>
+        <input type="number" id="f-inaccount" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>In Hand (₹) <span style="color:var(--text3);font-weight:400;">cash</span></label>
+        <input type="number" id="f-inhand" placeholder="0" min="0">
+      </div>
+      <div class="form-group full">
+        <label>Remark / Notes</label>
+        <textarea id="f-remark" placeholder="e.g. Zepto charge, Stock topup, Special orders..."></textarea>
+      </div>
+    </div>
+    <input type="hidden" id="f-edit-id">
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('entry-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEntry()">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- PO MODAL -->
+<div class="modal-overlay" id="po-modal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="po-modal-title">New Purchase Order</span>
+      <span class="modal-close" onclick="closeModal('po-modal')">&#x2715;</span>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>PO Number</label>
+        <input type="text" id="p-num" placeholder="e.g. PO-001">
+      </div>
+      <div class="form-group">
+        <label>Date *</label>
+        <input type="date" id="p-date">
+      </div>
+      <div class="form-group">
+        <label>Vendor / Supplier *</label>
+        <input type="text" id="p-vendor" placeholder="e.g. Raj Kumar Anna">
+      </div>
+      <div class="form-group">
+        <label>Amount (₹) *</label>
+        <input type="number" id="p-amount" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>Week</label>
+        <select id="p-week">
+          <option value="Week 1">Week 1 (May 1–7)</option>
+          <option value="Week 2">Week 2 (May 8–14)</option>
+          <option value="Week 3">Week 3 (May 15–21)</option>
+          <option value="Week 4">Week 4 (May 22–28)</option>
+          <option value="Week 5">Week 5 (May 29–31)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="p-status">
+          <option value="Pending">Pending</option>
+          <option value="Received">Received</option>
+          <option value="Partial">Partial</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Items / Description</label>
+        <textarea id="p-items" placeholder="e.g. Cake essentials, stock topup, flour, sugar..."></textarea>
+      </div>
+    </div>
+    <input type="hidden" id="p-edit-id">
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('po-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePO()">Save PO</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MAY_DATA = [
+  {id:'h1',date:'2026-05-01',onlineSale:11157,cashSale:8845,expense:1126,wastage:1152,remark:'Special cake things and porter expense'},
+  {id:'h2',date:'2026-05-02',onlineSale:4520,cashSale:1200,expense:28732,wastage:99,remark:'Zepto nutella, Auditor fee, salary for arokiya'},
+  {id:'h3',date:'2026-05-03',onlineSale:4264,cashSale:280,expense:353,wastage:425,remark:'Mosquito bat purchase'},
+  {id:'h4',date:'2026-05-04',onlineSale:8116,cashSale:1810,expense:21216,wastage:1630,remark:'4 Photo print for special cakes, paid to raj kumar anna'},
+  {id:'h5',date:'2026-05-05',onlineSale:3356,cashSale:1300,expense:50130,wastage:481,remark:'Stock topup and rent amount, received 20K from raj kumar anna and 15k'},
+  {id:'h6',date:'2026-05-06',onlineSale:4286,cashSale:2095,expense:3615,wastage:1182,remark:'News paper ad, photo print, instagram ad, color print'},
+  {id:'h7',date:'2026-05-07',onlineSale:4885,cashSale:1130,expense:1420,wastage:1161,remark:'Chain, vegetables, cutting plyer, audit amount'},
+  {id:'h8',date:'2026-05-08',onlineSale:6098,cashSale:1400,expense:10150,wastage:391,remark:'Zepto charge'},
+  {id:'h9',date:'2026-05-09',onlineSale:5304,cashSale:820,expense:410,wastage:1092,remark:'Soundbox and swipe machine charge'},
+  {id:'h10',date:'2026-05-10',onlineSale:4948,cashSale:1520,expense:1160,wastage:373,remark:'Kitchen knife organiser, photo print, petrol'},
+  {id:'h11',date:'2026-05-11',onlineSale:6983,cashSale:714,expense:638,wastage:1499,remark:'Zepto, insta post'},
+  {id:'h12',date:'2026-05-12',onlineSale:5378,cashSale:0,expense:0,wastage:149,remark:''},
+  {id:'h13',date:'2026-05-13',onlineSale:4652,cashSale:140,expense:45000,wastage:355,remark:'Received 15k from raj kumar anna, paid topup amount 45000'},
+  {id:'h14',date:'2026-05-14',onlineSale:10427,cashSale:180,expense:1494,wastage:1502,remark:'Petrol, special cake equipments'},
+  {id:'h15',date:'2026-05-15',onlineSale:3049,cashSale:2000,expense:168,wastage:521,remark:'Zepto charge'},
+  {id:'h16',date:'2026-05-16',onlineSale:7790,cashSale:300,expense:1218,wastage:751,remark:'Milk maid, zepto for rack'},
+  {id:'h17',date:'2026-05-17',onlineSale:7289,cashSale:800,expense:15379,wastage:665,remark:'Transferred 15k to raj kumar anna, photosheet'},
+  {id:'h18',date:'2026-05-18',onlineSale:4002,cashSale:710,expense:1380,wastage:485,remark:'Petrol, common EB amount'},
+  {id:'h19',date:'2026-05-19',onlineSale:6324,cashSale:1700,expense:20000,wastage:1492,remark:'Stock amount topup 20k'},
+  {id:'h20',date:'2026-05-20',onlineSale:7503,cashSale:470,expense:1056,wastage:219,remark:'Refund to customer, photo print'},
+  {id:'h21',date:'2026-05-21',onlineSale:5235,cashSale:310,expense:6500,wastage:1583,remark:'Photoprint, petrol, transferred 6k to raj kumar anna'},
+  {id:'h22',date:'2026-05-22',onlineSale:9523,cashSale:1600,expense:12320,wastage:343,remark:'Transferred 12k to raj kumar anna, photo print'},
+  {id:'h23',date:'2026-05-23',onlineSale:12885,cashSale:4500,expense:515,wastage:545,remark:'Sewage cleaning'},
+  {id:'h24',date:'2026-05-24',onlineSale:4620,cashSale:445,expense:11705,wastage:221,remark:'Transferred 10K to raj kumar anna, sewage cleaning 1500'},
+  {id:'h25',date:'2026-05-25',onlineSale:11474,cashSale:350,expense:32535,wastage:392,remark:'Received 20k from raj kumar anna, cake essentials, PO topup'},
+  {id:'h26',date:'2026-05-26',onlineSale:4600,cashSale:670,expense:120,wastage:583,remark:''},
+  {id:'h27',date:'2026-05-27',onlineSale:3675,cashSale:850,expense:1348,wastage:229,remark:'Photo sheet, chocochip, zepto, petrol'},
+  {id:'h28',date:'2026-05-28',onlineSale:6128,cashSale:700,expense:620,wastage:598,remark:'Photoprint, tag print'},
+  {id:'h29',date:'2026-05-29',onlineSale:6997,cashSale:2600,expense:851,wastage:2335,remark:'Special cake essentials'}
+];
+
+const MAY_POS = [
+  {id:'p1',poNumber:'PO-001',date:'2026-05-05',vendor:'Raj Kumar Anna',amount:50130,week:'Week 1',items:'Stock topup and rent amount',status:'Received'},
+  {id:'p2',poNumber:'PO-002',date:'2026-05-13',vendor:'Raj Kumar Anna',amount:45000,week:'Week 2',items:'Stock topup – paid to Raj Kumar Anna',status:'Received'},
+  {id:'p3',poNumber:'PO-003',date:'2026-05-19',vendor:'Raj Kumar Anna',amount:20000,week:'Week 3',items:'Stock amount topup',status:'Received'},
+  {id:'p4',poNumber:'PO-004',date:'2026-05-25',vendor:'Raj Kumar Anna',amount:32535,week:'Week 4',items:'Cake essentials purchase, PO topup',status:'Received'},
+  {id:'p5',poNumber:'PO-005',date:'2026-05-29',vendor:'Cake Essentials Supplier',amount:851,week:'Week 5',items:'Special cake essentials',status:'Received'}
+];
+
+let entries = [], pos = [];
+let charts = {};
+
+function loadData() {
+  const e = localStorage.getItem('ck_entries');
+  const p = localStorage.getItem('ck_pos');
+  if (e) { entries = JSON.parse(e); } else { entries = MAY_DATA.map(r=>({...r,sale:r.onlineSale+r.cashSale})); saveEntries(); }
+  if (p) { pos = JSON.parse(p); } else { pos = MAY_POS; savePOs(); }
+}
+function saveEntries() { localStorage.setItem('ck_entries', JSON.stringify(entries)); }
+function savePOs() { localStorage.setItem('ck_pos', JSON.stringify(pos)); }
+function uid() { return 'e' + Date.now() + Math.random().toString(36).slice(2,6); }
+
+function fmt(n) { return '₹' + Math.round(n||0).toLocaleString('en-IN'); }
+function fmtDate(d) {
+  if(!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+}
+function getSorted() { return [...entries].sort((a,b)=>a.date.localeCompare(b.date)); }
+
+function getBalances() {
+  const sorted = getSorted();
+  let cum = 28667;
+  return sorted.map(r => {
+    const sale = (r.onlineSale||0)+(r.cashSale||0);
+    cum = cum + sale - (r.expense||0);
+    return {...r, sale, balance: cum};
+  });
+}
+
+// Nav
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => showSection(el.dataset.section));
+});
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('section-'+name).classList.add('active');
+  document.querySelector(`[data-section="${name}"]`).classList.add('active');
+  if(name==='dashboard') renderDashboard();
+  if(name==='daily') renderEntries();
+  if(name==='po') renderPOs();
+  if(name==='weekly') renderWeekly();
+  if(name==='monthly') renderMonthly();
+}
+
+// Toast
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(()=>t.className='toast', 2800);
+}
+
+// Modal
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Entry Modal
+function openEntryModal(id) {
+  document.getElementById('entry-modal-title').textContent = id ? 'Edit Entry' : 'Add Daily Entry';
+  document.getElementById('f-edit-id').value = id || '';
+  if (id) {
+    const r = entries.find(e=>e.id===id);
+    document.getElementById('f-date').value = r.date;
+    document.getElementById('f-online').value = r.onlineSale||0;
+    document.getElementById('f-cash').value = r.cashSale||0;
+    document.getElementById('f-sale').value = (r.onlineSale||0)+(r.cashSale||0);
+    document.getElementById('f-expense').value = r.expense||0;
+    document.getElementById('f-wastage').value = r.wastage||0;
+    document.getElementById('f-inaccount').value = r.inAccount!=null ? r.inAccount : '';
+    document.getElementById('f-inhand').value = r.inHand!=null ? r.inHand : '';
+    document.getElementById('f-remark').value = r.remark||'';
+  } else {
+    document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+    ['f-online','f-cash','f-sale','f-expense','f-wastage','f-inaccount','f-inhand'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('f-remark').value='';
+  }
+  openModal('entry-modal');
+}
+
+['f-online','f-cash'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    const o = parseFloat(document.getElementById('f-online').value)||0;
+    const c = parseFloat(document.getElementById('f-cash').value)||0;
+    document.getElementById('f-sale').value = o+c;
+  });
+});
+
+function saveEntry() {
+  const date = document.getElementById('f-date').value;
+  if (!date) { toast('Please select a date','error'); return; }
+  const onlineSale = parseFloat(document.getElementById('f-online').value)||0;
+  const cashSale = parseFloat(document.getElementById('f-cash').value)||0;
+  const expense = parseFloat(document.getElementById('f-expense').value)||0;
+  const wastage = parseFloat(document.getElementById('f-wastage').value)||0;
+  const remark = document.getElementById('f-remark').value.trim();
+  const editId = document.getElementById('f-edit-id').value;
+
+  if (editId) {
+    const idx = entries.findIndex(e=>e.id===editId);
+    entries[idx] = {...entries[idx], date, onlineSale, cashSale, sale:onlineSale+cashSale, expense, wastage, remark};
+  } else {
+    const existing = entries.find(e=>e.date===date);
+    if (existing) { toast('Entry for this date already exists. Edit it instead.','error'); return; }
+    entries.push({id:uid(), date, onlineSale, cashSale, sale:onlineSale+cashSale, expense, wastage, remark});
+  }
+  saveEntries();
+  closeModal('entry-modal');
+  toast(editId ? 'Entry updated!' : 'Entry saved!');
+  renderEntries();
+  renderDashboard();
+}
+
+function deleteEntry(id) {
+  if (!confirm('Delete this entry?')) return;
+  entries = entries.filter(e=>e.id!==id);
+  saveEntries();
+  renderEntries();
+  renderDashboard();
+  toast('Entry deleted');
+}
+
+// PO Modal
+function openPOModal(id) {
+  document.getElementById('po-modal-title').textContent = id ? 'Edit PO' : 'New Purchase Order';
+  document.getElementById('p-edit-id').value = id||'';
+  if (id) {
+    const r = pos.find(p=>p.id===id);
+    document.getElementById('p-num').value = r.poNumber||'';
+    document.getElementById('p-date').value = r.date;
+    document.getElementById('p-vendor').value = r.vendor;
+    document.getElementById('p-amount').value = r.amount;
+    document.getElementById('p-week').value = r.week;
+    document.getElementById('p-status').value = r.status;
+    document.getElementById('p-items').value = r.items||'';
+  } else {
+    document.getElementById('p-num').value = 'PO-00' + (pos.length+1);
+    document.getElementById('p-date').value = new Date().toISOString().slice(0,10);
+    ['p-vendor','p-items'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('p-amount').value='';
+    document.getElementById('p-status').value='Pending';
+  }
+  openModal('po-modal');
+}
+
+function savePO() {
+  const date = document.getElementById('p-date').value;
+  const vendor = document.getElementById('p-vendor').value.trim();
+  const amount = parseFloat(document.getElementById('p-amount').value)||0;
+  if (!date||!vendor||!amount) { toast('Date, vendor and amount are required','error'); return; }
+  const obj = {
+    poNumber: document.getElementById('p-num').value.trim()||('PO-'+(pos.length+1)),
+    date, vendor, amount,
+    week: document.getElementById('p-week').value,
+    status: document.getElementById('p-status').value,
+    items: document.getElementById('p-items').value.trim()
+  };
+  const editId = document.getElementById('p-edit-id').value;
+  if (editId) {
+    const idx = pos.findIndex(p=>p.id===editId);
+    pos[idx] = {...pos[idx], ...obj};
+  } else {
+    pos.push({id:uid(), ...obj});
+  }
+  savePOs();
+  closeModal('po-modal');
+  toast(editId ? 'PO updated!' : 'PO created!');
+  renderPOs();
+}
+
+function deletePO(id) {
+  if (!confirm('Delete this PO?')) return;
+  pos = pos.filter(p=>p.id!==id);
+  savePOs();
+  renderPOs();
+  toast('PO deleted');
+}
+
+function updatePOStatus(id, status) {
+  const idx = pos.findIndex(p=>p.id===id);
+  pos[idx].status = status;
+  savePOs();
+  renderPOs();
+  toast('Status updated');
+}
+
+// DASHBOARD
+function renderDashboard() {
+  const rows = getBalances();
+  const tSale = rows.reduce((a,r)=>a+r.sale,0);
+  const tExp = rows.reduce((a,r)=>a+r.expense,0);
+  const tWaste = rows.reduce((a,r)=>a+r.wastage,0);
+  const lastBal = rows.length ? rows[rows.length-1].balance : 28667;
+  const avgSale = rows.length ? Math.round(tSale/rows.length) : 0;
+  const bestDay = rows.reduce((a,r)=>r.sale>a?r.sale:a, 0);
+  const wasteP = tSale>0 ? ((tWaste/tSale)*100).toFixed(1) : '0.0';
+  const lastRow = rows.length ? rows[rows.length-1] : {};
+  const inAccount = lastRow.inAccount != null ? lastRow.inAccount : 42815;
+  const inHand = lastRow.inHand != null ? lastRow.inHand : 9420;
+
+  document.getElementById('dash-metrics').innerHTML = `
+    <div class="metric-card accent"><div class="m-label">Total Sales</div><div class="m-value">${fmt(tSale)}</div><div class="m-sub neutral">${rows.length} days recorded</div></div>
+    <div class="metric-card"><div class="m-label">Total Expenses</div><div class="m-value">${fmt(tExp)}</div><div class="m-sub down">outflow</div></div>
+    <div class="metric-card" style="border-color:rgba(34,197,94,0.3);background:rgba(34,197,94,0.06);"><div class="m-label">&#x1F3E6; In Account</div><div class="m-value" style="color:#4ade80;">${fmt(inAccount)}</div><div class="m-sub up">online/bank balance</div></div>
+    <div class="metric-card" style="border-color:rgba(59,130,246,0.3);background:rgba(59,130,246,0.06);"><div class="m-label">&#x1F4B5; In Hand (Cash)</div><div class="m-value" style="color:#60a5fa;">${fmt(inHand)}</div><div class="m-sub neutral">physical cash</div></div>
+    <div class="metric-card"><div class="m-label">Daily Avg Sale</div><div class="m-value">${fmt(avgSale)}</div><div class="m-sub neutral">per day</div></div>
+    <div class="metric-card"><div class="m-label">Best Day</div><div class="m-value">${fmt(bestDay)}</div><div class="m-sub up">highest single day</div></div>
+    <div class="metric-card"><div class="m-label">Closing Balance</div><div class="m-value">${fmt(lastBal)}</div><div class="m-sub neutral">acct + hand = ${fmt(inAccount+inHand)}</div></div>
+    <div class="metric-card"><div class="m-label">Wastage</div><div class="m-value">${fmt(tWaste)}</div><div class="m-sub down">${wasteP}% of sales</div></div>
+  `;
+
+  const labels = rows.map(r => { const d=new Date(r.date+'T00:00:00'); return d.getDate(); });
+  const saleData = rows.map(r=>r.sale);
+  const expData = rows.map(r=>r.expense);
+  const balData = rows.map(r=>r.balance);
+
+  if(charts.salesExp) charts.salesExp.destroy();
+  charts.salesExp = new Chart(document.getElementById('chartSalesExp'), {
+    type:'bar',
+    data:{labels, datasets:[
+      {label:'Sales',data:saleData,backgroundColor:'#f5a623',borderRadius:3},
+      {label:'Expenses',data:expData,backgroundColor:'#ef4444aa',borderRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#64748b',font:{size:10}},grid:{display:false}},
+              y:{ticks:{color:'#64748b',font:{size:10},callback:v=>'₹'+(v/1000).toFixed(0)+'k'},grid:{color:'rgba(255,255,255,0.05)'}}}}
+  });
+
+  if(charts.balance) charts.balance.destroy();
+  charts.balance = new Chart(document.getElementById('chartBalance'), {
+    type:'line',
+    data:{labels, datasets:[{label:'Balance',data:balData,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.08)',fill:true,tension:.35,pointRadius:2,borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#64748b',font:{size:10}},grid:{display:false}},
+              y:{ticks:{color:'#64748b',font:{size:10},callback:v=>'₹'+(v/1000).toFixed(0)+'k'},grid:{color:'rgba(255,255,255,0.05)'}}}}
+  });
+
+  const recent = rows.slice(-7).reverse();
+  document.getElementById('dash-recent-body').innerHTML = recent.map(r=>{
+    const net = r.sale - r.expense;
+    return `<tr>
+      <td>${fmtDate(r.date)}</td>
+      <td>${fmt(r.sale)}</td>
+      <td style="color:#94a3b8;">${fmt(r.onlineSale)}</td>
+      <td style="color:#94a3b8;">${fmt(r.cashSale)}</td>
+      <td>${fmt(r.expense)}</td>
+      <td class="${net>=0?'':''}"><span class="badge ${net>=0?'badge-green':'badge-red'}">${net>=0?'+':''}${fmt(net)}</span></td>
+      <td>${fmt(r.wastage)}</td>
+      <td style="color:#64748b;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.remark||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ENTRIES
+function renderEntries() {
+  const rows = getBalances();
+  document.getElementById('entry-count').textContent = rows.length + ' entries';
+  const tSale = rows.reduce((a,r)=>a+r.sale,0);
+  const tExp = rows.reduce((a,r)=>a+r.expense,0);
+  const tWaste = rows.reduce((a,r)=>a+r.wastage,0);
+
+  document.getElementById('entries-body').innerHTML = rows.map(r=>{
+    const net = r.sale - r.expense;
+    return `<tr>
+      <td>${fmtDate(r.date)}</td>
+      <td><strong>${fmt(r.sale)}</strong></td>
+      <td style="color:#94a3b8;">${fmt(r.onlineSale)}</td>
+      <td style="color:#94a3b8;">${fmt(r.cashSale)}</td>
+      <td>${fmt(r.expense)}</td>
+      <td><span class="badge ${net>=0?'badge-green':'badge-red'}">${net>=0?'+':''}${fmt(net)}</span></td>
+      <td>${fmt(r.wastage)}</td>
+      <td>${fmt(r.balance)}</td>
+      <td style="color:#64748b;font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.remark||'—'}</td>
+      <td>
+        <div style="display:flex;gap:4px;">
+          <button class="btn btn-ghost btn-sm" onclick="openEntryModal('${r.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteEntry('${r.id}')">Del</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('entries-foot').innerHTML = `<tr class="tr-tot">
+    <td>Total</td><td>${fmt(tSale)}</td><td colspan="2"></td><td>${fmt(tExp)}</td>
+    <td><span class="badge ${tSale-tExp>=0?'badge-green':'badge-red'}">${tSale-tExp>=0?'+':''}${fmt(tSale-tExp)}</span></td>
+    <td>${fmt(tWaste)}</td><td>${fmt(rows.length?rows[rows.length-1].balance:0)}</td><td colspan="2"></td>
+  </tr>`;
+}
+
+// POs
+function renderPOs() {
+  const total = pos.reduce((a,p)=>a+p.amount,0);
+  const pending = pos.filter(p=>p.status==='Pending').reduce((a,p)=>a+p.amount,0);
+  const received = pos.filter(p=>p.status==='Received').reduce((a,p)=>a+p.amount,0);
+  document.getElementById('po-metrics').innerHTML = `
+    <div class="metric-card accent"><div class="m-label">Total PO Value</div><div class="m-value">${fmt(total)}</div><div class="m-sub neutral">${pos.length} orders</div></div>
+    <div class="metric-card"><div class="m-label">Received</div><div class="m-value">${fmt(received)}</div><div class="m-sub up">${pos.filter(p=>p.status==='Received').length} POs</div></div>
+    <div class="metric-card"><div class="m-label">Pending</div><div class="m-value">${fmt(pending)}</div><div class="m-sub ${pending>0?'down':'neutral'}">${pos.filter(p=>p.status==='Pending').length} POs</div></div>
+    <div class="metric-card"><div class="m-label">This Month</div><div class="m-value">${pos.length}</div><div class="m-sub neutral">purchase orders</div></div>
+  `;
+
+  const sorted = [...pos].sort((a,b)=>a.date.localeCompare(b.date));
+  if (!sorted.length) {
+    document.getElementById('po-list').innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div>No purchase orders yet.</div><div style="margin-top:8px;"><button class="btn btn-primary" onclick="openPOModal()">+ Create First PO</button></div></div>';
+    return;
+  }
+
+  const statusBadge = s => {
+    if(s==='Received') return 'badge-green';
+    if(s==='Pending') return 'badge-amber';
+    if(s==='Partial') return 'badge-blue';
+    return 'badge-gray';
+  };
+
+  document.getElementById('po-list').innerHTML = `
+    <div class="table-wrap"><table>
+      <thead><tr><th>PO #</th><th>Date</th><th>Vendor</th><th>Week</th><th>Amount</th><th>Items</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${sorted.map(p=>`<tr>
+        <td><span style="color:var(--amber);font-weight:500;">${p.poNumber||'—'}</span></td>
+        <td>${fmtDate(p.date)}</td>
+        <td>${p.vendor}</td>
+        <td><span class="badge badge-blue">${p.week}</span></td>
+        <td><strong>${fmt(p.amount)}</strong></td>
+        <td style="color:#64748b;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.items||'—'}</td>
+        <td><span class="badge ${statusBadge(p.status)}">${p.status}</span></td>
+        <td><div style="display:flex;gap:4px;">
+          ${p.status==='Pending'?`<button class="btn btn-success btn-sm" onclick="updatePOStatus('${p.id}','Received')">Receive</button>`:''}
+          <button class="btn btn-ghost btn-sm" onclick="openPOModal('${p.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deletePO('${p.id}')">Del</button>
+        </div></td>
+      </tr>`).join('')}
+      </tbody>
+      <tfoot><tr class="tr-tot"><td colspan="4">Total</td><td>${fmt(total)}</td><td colspan="3"></td></tr></tfoot>
+    </table></div>`;
+}
+
+// WEEKLY
+const WEEKS = [
+  {label:'Week 1',range:'May 1–7',dates:['2026-05-01','2026-05-02','2026-05-03','2026-05-04','2026-05-05','2026-05-06','2026-05-07']},
+  {label:'Week 2',range:'May 8–14',dates:['2026-05-08','2026-05-09','2026-05-10','2026-05-11','2026-05-12','2026-05-13','2026-05-14']},
+  {label:'Week 3',range:'May 15–21',dates:['2026-05-15','2026-05-16','2026-05-17','2026-05-18','2026-05-19','2026-05-20','2026-05-21']},
+  {label:'Week 4',range:'May 22–28',dates:['2026-05-22','2026-05-23','2026-05-24','2026-05-25','2026-05-26','2026-05-27','2026-05-28']},
+  {label:'Week 5',range:'May 29–31',dates:['2026-05-29','2026-05-30','2026-05-31']}
+];
+
+function renderWeekly() {
+  const rows = getBalances();
+  const wSales=[], wExp=[], wNet=[];
+
+  const blocks = WEEKS.map((w,wi)=>{
+    const wRows = rows.filter(r=>w.dates.includes(r.date));
+    if(!wRows.length) return '';
+    const tSale=wRows.reduce((a,r)=>a+r.sale,0);
+    const tExp=wRows.reduce((a,r)=>a+r.expense,0);
+    const tWaste=wRows.reduce((a,r)=>a+r.wastage,0);
+    const net=tSale-tExp;
+    const endBal=wRows[wRows.length-1].balance;
+    wSales.push(tSale); wExp.push(tExp); wNet.push(net);
+
+    const wPos = pos.filter(p=>p.week===w.label);
+    const poTotal = wPos.reduce((a,p)=>a+p.amount,0);
+
+    const rows_html = wRows.map(r=>{
+      const n=r.sale-r.expense;
+      return `<tr><td>${fmtDate(r.date)}</td><td>${fmt(r.sale)}</td><td style="color:#94a3b8;">${fmt(r.onlineSale)}</td><td style="color:#94a3b8;">${fmt(r.cashSale)}</td><td>${fmt(r.expense)}</td><td><span class="badge ${n>=0?'badge-green':'badge-red'}">${n>=0?'+':''}${fmt(n)}</span></td><td>${fmt(r.wastage)}</td><td>${fmt(r.balance)}</td><td style="color:#64748b;font-size:11px;">${r.remark||'—'}</td></tr>`;
+    }).join('');
+
+    return `<div class="week-block">
+      <div class="week-head" onclick="toggleWeek(${wi})">
+        <div class="week-head-left">
+          <span class="week-num">${w.label}</span>
+          <span class="week-range">${w.range}</span>
+          <div class="week-stats-row">
+            <span class="ws">Sales: <span>${fmt(tSale)}</span></span>
+            <span class="ws">Exp: <span>${fmt(tExp)}</span></span>
+            <span class="ws">PO: <span>${fmt(poTotal)}</span></span>
+            <span class="ws">End Bal: <span>${fmt(endBal)}</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="badge ${net>=0?'badge-green':'badge-red'}">${net>=0?'Profit +':'Loss '}${fmt(Math.abs(net))}</span>
+          <span class="chevron" id="chev-${wi}">&#x2303;</span>
+        </div>
+      </div>
+      <div class="week-body" id="wb-${wi}">
+        ${wPos.length?`<div style="background:rgba(245,166,35,0.07);border:1px solid rgba(245,166,35,0.15);border-radius:8px;padding:10px 14px;margin-bottom:12px;">
+          <div style="font-size:11px;color:var(--amber);font-weight:600;margin-bottom:6px;">POs THIS WEEK (${fmt(poTotal)})</div>
+          ${wPos.map(p=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+            <span style="color:var(--text2);">${p.poNumber} · ${p.vendor}</span>
+            <span style="color:var(--text);font-weight:500;">${fmt(p.amount)} <span class="badge ${p.status==='Received'?'badge-green':'badge-amber'}" style="margin-left:4px;">${p.status}</span></span>
+          </div>`).join('')}
+        </div>`:''}
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Sale</th><th>Online</th><th>Cash</th><th>Expense</th><th>Net</th><th>Wastage</th><th>Balance</th><th>Remark</th></tr></thead>
+          <tbody>${rows_html}</tbody>
+          <tfoot><tr class="tr-tot"><td>Total</td><td>${fmt(tSale)}</td><td colspan="2"></td><td>${fmt(tExp)}</td><td colspan="1"></td><td>${fmt(tWaste)}</td><td>${fmt(endBal)}</td><td></td></tr></tfoot>
+        </table></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('weekly-blocks').innerHTML = blocks || '<div class="empty"><div class="empty-icon">📊</div><div>No data for this month yet.</div></div>';
+
+  const PRESENT = WEEKS.filter((_,i)=>wSales[i]!==undefined);
+  if(charts.weekly) charts.weekly.destroy();
+  charts.weekly = new Chart(document.getElementById('chartWeekly'), {
+    type:'bar',
+    data:{labels:PRESENT.map(w=>w.label),datasets:[
+      {label:'Sales',data:wSales,backgroundColor:'#f5a623',borderRadius:4},
+      {label:'Expenses',data:wExp,backgroundColor:'#ef444480',borderRadius:4},
+      {label:'Net',data:wNet,backgroundColor:'#22c55e80',borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#64748b'},grid:{display:false}},
+              y:{ticks:{color:'#64748b',callback:v=>'₹'+(v/1000).toFixed(0)+'k'},grid:{color:'rgba(255,255,255,0.05)'}}}}
+  });
+}
+
+function toggleWeek(i) {
+  const body = document.getElementById('wb-'+i);
+  const chev = document.getElementById('chev-'+i);
+  const open = body.classList.toggle('open');
+  chev.classList.toggle('open', open);
+}
+
+// MONTHLY
+function renderMonthly() {
+  const rows = getBalances();
+  const tSale=rows.reduce((a,r)=>a+r.sale,0);
+  const tOnline=rows.reduce((a,r)=>a+(r.onlineSale||0),0);
+  const tCash=rows.reduce((a,r)=>a+(r.cashSale||0),0);
+  const tExp=rows.reduce((a,r)=>a+r.expense,0);
+  const tWaste=rows.reduce((a,r)=>a+r.wastage,0);
+  const lastBal=rows.length?rows[rows.length-1].balance:0;
+  const net=tSale-tExp;
+  const tPO=pos.reduce((a,p)=>a+p.amount,0);
+  const wasteP=tSale>0?((tWaste/tSale)*100).toFixed(1):0;
+  const onlineP=tSale>0?((tOnline/tSale)*100).toFixed(0):0;
+
+  const mLastRow = rows.length ? rows[rows.length-1] : {};
+  const mInAccount = mLastRow.inAccount != null ? mLastRow.inAccount : 42815;
+  const mInHand = mLastRow.inHand != null ? mLastRow.inHand : 9420;
+
+  document.getElementById('monthly-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;">
+      <div class="metric-card accent"><div class="m-label">Total Sales</div><div class="m-value">${fmt(tSale)}</div><div class="m-sub neutral">${rows.length} active days</div></div>
+      <div class="metric-card"><div class="m-label">Online Sales</div><div class="m-value">${fmt(tOnline)}</div><div class="m-sub up">${onlineP}% of sales</div></div>
+      <div class="metric-card"><div class="m-label">Cash Sales</div><div class="m-value">${fmt(tCash)}</div><div class="m-sub neutral">${100-parseInt(onlineP)}% of sales</div></div>
+      <div class="metric-card"><div class="m-label">Total Expenses</div><div class="m-value">${fmt(tExp)}</div><div class="m-sub down">outflow</div></div>
+      <div class="metric-card"><div class="m-label">Net P&L</div><div class="m-value" style="color:${net>=0?'#22c55e':'#ef4444'}">${net>=0?'+':''}${fmt(net)}</div><div class="m-sub ${net>=0?'up':'down'}">${net>=0?'Profitable':'Loss month'}</div></div>
+      <div class="metric-card"><div class="m-label">Closing Balance</div><div class="m-value">${fmt(lastBal)}</div><div class="m-sub neutral">end of month</div></div>
+      <div class="metric-card" style="border-color:rgba(34,197,94,0.3);background:rgba(34,197,94,0.06);"><div class="m-label">&#x1F3E6; In Account</div><div class="m-value" style="color:#4ade80;">${fmt(mInAccount)}</div><div class="m-sub up">bank / online</div></div>
+      <div class="metric-card" style="border-color:rgba(59,130,246,0.3);background:rgba(59,130,246,0.06);"><div class="m-label">&#x1F4B5; In Hand (Cash)</div><div class="m-value" style="color:#60a5fa;">${fmt(mInHand)}</div><div class="m-sub neutral">physical cash</div></div>
+      <div class="metric-card"><div class="m-label">Total Wastage</div><div class="m-value">${fmt(tWaste)}</div><div class="m-sub down">${wasteP}% of sales</div></div>
+      <div class="metric-card"><div class="m-label">Total PO Value</div><div class="m-value">${fmt(tPO)}</div><div class="m-sub neutral">${pos.length} POs raised</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">Full transaction ledger – May 2026</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Date</th><th>Sale (₹)</th><th>Online (₹)</th><th>Cash (₹)</th><th>Expense (₹)</th><th>Net (₹)</th><th>Balance (₹)</th><th>Wastage (₹)</th><th>Remark</th></tr></thead>
+        <tbody>${rows.map(r=>{const n=r.sale-r.expense;return `<tr>
+          <td>${fmtDate(r.date)}</td><td><strong>${fmt(r.sale)}</strong></td><td>${fmt(r.onlineSale)}</td><td>${fmt(r.cashSale)}</td>
+          <td>${fmt(r.expense)}</td><td style="color:${n>=0?'#4ade80':'#f87171'}">${n>=0?'+':''}${fmt(n)}</td>
+          <td>${fmt(r.balance)}</td><td>${fmt(r.wastage)}</td>
+          <td style="color:#64748b;font-size:12px;">${r.remark||'—'}</td></tr>`;}).join('')}
+        </tbody>
+        <tfoot><tr class="tr-tot"><td>Total</td><td>${fmt(tSale)}</td><td>${fmt(tOnline)}</td><td>${fmt(tCash)}</td><td>${fmt(tExp)}</td><td style="color:${net>=0?'#4ade80':'#f87171'}">${net>=0?'+':''}${fmt(net)}</td><td>${fmt(lastBal)}</td><td>${fmt(tWaste)}</td><td></td></tr></tfoot>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">PO summary – May 2026</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>PO #</th><th>Date</th><th>Week</th><th>Vendor</th><th>Amount (₹)</th><th>Items</th><th>Status</th></tr></thead>
+        <tbody>${[...pos].sort((a,b)=>a.date.localeCompare(b.date)).map(p=>`<tr>
+          <td style="color:var(--amber);">${p.poNumber||'—'}</td><td>${fmtDate(p.date)}</td>
+          <td>${p.week}</td><td>${p.vendor}</td><td><strong>${fmt(p.amount)}</strong></td>
+          <td style="color:#64748b;font-size:12px;">${p.items||'—'}</td>
+          <td><span class="badge ${p.status==='Received'?'badge-green':'badge-amber'}">${p.status}</span></td>
+        </tr>`).join('')}
+        </tbody>
+        <tfoot><tr class="tr-tot"><td colspan="4">Total</td><td>${fmt(tPO)}</td><td colspan="2"></td></tr></tfoot>
+      </table></div>
+    </div>
+  `;
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click', e=>{if(e.target===o) o.classList.remove('open');});
+});
+
+// Init
+loadData();
+renderDashboard();
+</script>
+</body>
+</html>
