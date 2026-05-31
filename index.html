@@ -851,30 +851,20 @@ function setSyncStatus(state) {
   lbl.textContent = state==='syncing'?'Syncing…':state==='error'?'Offline':'Live · All devices';
 }
 
+
+const API_URL = 'https://script.google.com/macros/s/AKfycby5owvZljYjPbKJL9TNYy8EL2HGnKf24caNgvUXNjZoraSWRSxqe_hHlir-91ygoK0w/exec';
+
 async function loadData() {
   setSyncStatus('syncing');
   try {
-    const [eRes, pRes] = await Promise.all([
-      window.storage.get(ENTRY_KEY, true),
-      window.storage.get(PO_KEY, true)
-    ]);
-    entries = eRes ? JSON.parse(eRes.value) : SEED_ENTRIES;
-    pos     = pRes ? JSON.parse(pRes.value) : SEED_POS;
-    if (!eRes) await window.storage.set(ENTRY_KEY, JSON.stringify(entries), true);
-    if (!pRes) await window.storage.set(PO_KEY, JSON.stringify(pos), true);
+    const res = await fetch(API_URL + '?action=getData');
+    const data = await res.json();
+    entries = data.entries || SEED_ENTRIES;
+    pos = data.pos || SEED_POS;
     setSyncStatus('live');
-  } catch(e) {
-    // Fallback to localStorage
-    try {
-      const le = localStorage.getItem(ENTRY_KEY);
-      const lp = localStorage.getItem(PO_KEY);
-      entries = le ? JSON.parse(le) : SEED_ENTRIES;
-      pos     = lp ? JSON.parse(lp) : SEED_POS;
-      if (!le) localStorage.setItem(ENTRY_KEY, JSON.stringify(entries));
-      if (!lp) localStorage.setItem(PO_KEY, JSON.stringify(pos));
-    } catch(e2) {
-      entries = SEED_ENTRIES; pos = SEED_POS;
-    }
+  } catch(e){
+    entries = SEED_ENTRIES;
+    pos = SEED_POS;
     setSyncStatus('error');
   }
 }
@@ -882,23 +872,18 @@ async function loadData() {
 async function saveEntries() {
   setSyncStatus('syncing');
   try {
-    await window.storage.set(ENTRY_KEY, JSON.stringify(entries), true);
+    await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saveEntries',entries})});
     setSyncStatus('live');
-  } catch(e) {
-    try { localStorage.setItem(ENTRY_KEY, JSON.stringify(entries)); } catch(e2){}
-    setSyncStatus('error');
-  }
+  } catch(e){ setSyncStatus('error');}
 }
 async function savePOs() {
   setSyncStatus('syncing');
   try {
-    await window.storage.set(PO_KEY, JSON.stringify(pos), true);
+    await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'savePOs',pos})});
     setSyncStatus('live');
-  } catch(e) {
-    try { localStorage.setItem(PO_KEY, JSON.stringify(pos)); } catch(e2){}
-    setSyncStatus('error');
-  }
+  } catch(e){ setSyncStatus('error');}
 }
+
 
 /* ══════════════════════════════════════
    HELPERS
