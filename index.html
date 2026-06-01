@@ -13,7 +13,7 @@
 <div id="root"></div>
 
 <script type="text/babel">
-import { useState, useEffect, useMemo, useRef } from "react";
+const { useState, useEffect, useMemo, useRef } = React;
 
 // ─── MOCK DATA ────────────────────────────────────────────────
 const USERS = [
@@ -935,7 +935,7 @@ function Monthly({ entries }) {
 }
 
 // ─── APP SHELL ────────────────────────────────────────────────
-export default function App() {
+function App() {
   const [user,    setUser]    = useState(null);
   const [view,    setView]    = useState("dashboard");
   const [entries, setEntries] = useState(DB);
@@ -1013,6 +1013,8 @@ export default function App() {
   );
 }
 
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>
 </body>
 </html>
