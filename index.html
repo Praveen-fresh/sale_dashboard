@@ -8,20 +8,13 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
 <script type="module">
-import { initializeApp }
-from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
 
-import {
-  getFirestore,
-  collection,
-  getDocs,
-  doc,
-  setDoc
-}
-from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
-
-
+// ── YOUR FIREBASE CONFIG ──────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyCF2irTdybQ-WOuYi2swQr9rigPICbaRLk",
   authDomain: "skandan-enterprise.firebaseapp.com",
@@ -32,65 +25,37 @@ const firebaseConfig = {
   measurementId: "G-W16XP3GXVQ"
 };
 
+const app  = initializeApp(firebaseConfig);
+const db   = getFirestore(app);
+const auth = getAuth(app);
 
-const app = initializeApp(firebaseConfig);
+// Expose to React (runs in Babel/non-module context)
+window.__db   = db;
+window.__auth = auth;
+window.__firebase = { collection, getDocs, doc, setDoc, query, orderBy, signInWithEmailAndPassword, signOut, onAuthStateChanged };
 
-const db = getFirestore(app);
-
-window.db = db;
-
-console.log("Firebase Connected");
-
+console.log("✅ Firebase initialised");
 </script>
 </head>
 <body>
 <div id="root"></div>
 
 <script type="text/babel">
-const { useState, useEffect, useMemo, useRef } = React;
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
-// ─── MOCK DATA ────────────────────────────────────────────────
-const USERS = [
-  { id: "u1", email: "owner@skandan.in",   password: "owner123",   role: "owner",   name: "Skandan Kumar",  avatar: "SK" },
-  { id: "u2", email: "manager@skandan.in", password: "manager123", role: "manager", name: "Ravi Krishnan",  avatar: "RK" },
-];
-
-const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-const pad  = (n) => String(n).padStart(2, "0");
-const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
-
-const seedEntries = () => {
-  const arr = [];
-  const now = new Date();
-  for (let i = 59; i >= 0; i--) {
-    const d = new Date(now); d.setDate(d.getDate() - i);
-    const ds = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-    const cash = rand(4000,9000), card = rand(3000,7000), swiggy = rand(1500,5000);
-    arr.push({
-      id: `e${i}`, date: ds,
-      sales: { cash, card, swiggy },
-      expenses: [
-        { item:"Flour & Wheat",   amount: rand(800,2200),  category:"Raw Materials" },
-        { item:"Electricity",     amount: rand(200,600),   category:"Utilities"     },
-        { item:"Staff Wages",     amount: rand(500,1200),  category:"Salary"        },
-        { item:"Packaging",       amount: rand(100,400),   category:"Miscellaneous" },
-      ],
-      purchaseOrders: [{ vendor:"Metro Wholesale", invoice:`INV-${1000+i}`, paid: rand(1000,4000), pending: rand(0,800) }],
-      openingStock: rand(8000,14000), closingStock: rand(6000,12000),
-      wastage: [{ item:"Bread Loaves", quantity: rand(2,12), cost: rand(150,700) }],
-      cashPosition: { cashInHand: rand(3000,8000), cashInBank: rand(10000,30000) },
-    });
-  }
-  return arr;
-};
-
-let DB = seedEntries();
+// ─── FIREBASE REFS ────────────────────────────────────────────
+// Accessed after module script runs
+const getDB   = () => window.__db;
+const getAuth = () => window.__auth;
+const FB      = () => window.__firebase;
 
 // ─── HELPERS ──────────────────────────────────────────────────
-const INR = (n) => "₹" + Number(n||0).toLocaleString("en-IN");
-const PCT = (n) => Number(n||0).toFixed(2) + "%";
+const INR  = (n) => "₹" + Number(n||0).toLocaleString("en-IN");
+const PCT  = (n) => Number(n||0).toFixed(2) + "%";
+const pad  = (n) => String(n).padStart(2, "0");
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DAY_NAMES   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
 
 const totals = (e) => {
   if (!e) return { sales:0, expenses:0, wastage:0, po:0, profit:0 };
@@ -121,13 +86,14 @@ const IC = {
   trend:   ["M23 6l-9.5 9.5-5-5L1 18","M17 6h6v6"],
   rupee:   "M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
   box:     ["M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z","M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"],
-  warn:    ["M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z","M12 9v4","M12 17h.01"],
+  warn:    ["M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0-3.42 0z","M12 9v4","M12 17h.01"],
   eye:     ["M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z","M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"],
   lock:    ["M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z","M7 11V7a5 5 0 0 1 10 0v4"],
   chevron: "M9 18l6-6-6-6",
   menu:    "M3 6h18 M3 12h18 M3 18h18",
   check:   "M20 6L9 17l-5-5",
   spark:   ["M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"],
+  spin:    "M12 2v4 M12 18v4 M4.93 4.93l2.83 2.83 M16.24 16.24l2.83 2.83 M2 12h4 M18 12h4 M4.93 19.07l2.83-2.83 M16.24 7.76l2.83-2.83",
 };
 
 // ─── GLOBAL STYLES ────────────────────────────────────────────
@@ -166,28 +132,58 @@ input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.4);}
 .fade-up{animation:fadeUp .35s ease both;}
 .card-glow{animation:glowPulse 4s ease-in-out infinite;}
 .grid-dots{background-image:radial-gradient(circle,rgba(255,255,255,.04) 1px,transparent 1px);background-size:24px 24px;}
+.spinner{animation:spin .8s linear infinite;}
 `;
 
-// ─── AUTH SCREEN ──────────────────────────────────────────────
+// ─── LOADING SCREEN ───────────────────────────────────────────
+function LoadingScreen({ msg="Loading…" }) {
+  return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",flexDirection:"column",gap:16}}>
+      <div style={{width:48,height:48,border:"3px solid rgba(79,156,249,.2)",borderTop:"3px solid #4f9cf9",borderRadius:"50%"}} className="spinner"/>
+      <p style={{color:"var(--muted)",fontSize:13}}>{msg}</p>
+    </div>
+  );
+}
+
+// ─── AUTH SCREEN (Firebase Auth) ─────────────────────────────
 function AuthScreen({ onLogin }) {
-  const [email, setEmail] = useState("");
-  const [pass,  setPass]  = useState("");
-  const [err,   setErr]   = useState("");
-  const [busy,  setBusy]  = useState(false);
+  const [email,    setEmail]    = useState("");
+  const [pass,     setPass]     = useState("");
+  const [err,      setErr]      = useState("");
+  const [busy,     setBusy]     = useState(false);
   const [showPass, setShowPass] = useState(false);
 
   const submit = async (e) => {
     e?.preventDefault();
     setErr(""); setBusy(true);
-    await new Promise(r => setTimeout(r, 700));
-    const u = USERS.find(u => u.email===email && u.password===pass);
-    u ? onLogin(u) : setErr("Invalid credentials. Please try again.");
+    try {
+      const { signInWithEmailAndPassword } = FB();
+      const cred = await signInWithEmailAndPassword(getAuth(), email, pass);
+      // role is stored as a custom claim or in Firestore users collection
+      // For now we read from Firestore /users/{uid}
+      const { getDocs, collection, doc } = FB();
+      // Try to fetch user profile from Firestore
+      const userDocRef = window.__firebase.doc(getDB(), "users", cred.user.uid);
+      const snap = await window.__firebase.getDocs ? null : null; // placeholder
+      // Fallback: derive role from email
+      let role = "manager";
+      let name = cred.user.displayName || cred.user.email.split("@")[0];
+      let avatar = name.slice(0,2).toUpperCase();
+      if (email.toLowerCase().includes("owner")) role = "owner";
+      onLogin({ uid: cred.user.uid, email: cred.user.email, role, name, avatar });
+    } catch (ex) {
+      const msg = ex.code === "auth/invalid-credential" || ex.code === "auth/wrong-password" || ex.code === "auth/user-not-found"
+        ? "Invalid email or password. Please try again."
+        : ex.code === "auth/too-many-requests"
+        ? "Too many attempts. Please wait a moment."
+        : ex.message || "Sign in failed.";
+      setErr(msg);
+    }
     setBusy(false);
   };
 
   return (
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",position:"relative",overflow:"hidden"}}>
-      {/* Background mesh */}
       <div style={{position:"absolute",inset:0,pointerEvents:"none"}}>
         <div style={{position:"absolute",top:"15%",left:"10%",width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(79,156,249,.07) 0%,transparent 70%)"}}/>
         <div style={{position:"absolute",bottom:"10%",right:"8%",width:400,height:400,borderRadius:"50%",background:"radial-gradient(circle,rgba(34,211,160,.06) 0%,transparent 70%)"}}/>
@@ -195,19 +191,17 @@ function AuthScreen({ onLogin }) {
       </div>
 
       <div style={{width:"100%",maxWidth:440,padding:"0 20px",position:"relative"}} className="fade-up">
-        {/* Logo block */}
         <div style={{textAlign:"center",marginBottom:36}}>
           <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:58,height:58,borderRadius:16,background:"linear-gradient(135deg,#4f9cf9,#22d3a0)",marginBottom:16,boxShadow:"0 8px 32px rgba(79,156,249,.3)"}}>
-            <Ico d={IC.bread} s={26} c="text-white" />
+            <Ico d={IC.bread} s={26}/>
           </div>
           <h1 className="syne" style={{fontSize:26,fontWeight:800,color:"#fff",letterSpacing:"-0.5px"}}>Skandan Enterprise</h1>
           <p style={{color:"var(--muted)",fontSize:13,marginTop:6,letterSpacing:"0.04em"}}>CK'S BAKERY FRANCHISE · OPERATIONS PORTAL</p>
         </div>
 
-        {/* Card */}
         <div style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:20,padding:36,boxShadow:"0 24px 64px rgba(0,0,0,.5)"}}>
           <h2 style={{fontSize:18,fontWeight:700,color:"#fff",marginBottom:6}}>Welcome back</h2>
-          <p style={{color:"var(--muted)",fontSize:13,marginBottom:28}}>Sign in to your operations dashboard</p>
+          <p style={{color:"var(--muted)",fontSize:13,marginBottom:28}}>Sign in with your Firebase account</p>
 
           <form onSubmit={submit} style={{display:"flex",flexDirection:"column",gap:16}}>
             <div>
@@ -217,9 +211,9 @@ function AuthScreen({ onLogin }) {
             <div>
               <label style={{display:"block",fontSize:12,fontWeight:600,color:"var(--muted)",marginBottom:7,textTransform:"uppercase",letterSpacing:"0.06em"}}>Password</label>
               <div style={{position:"relative"}}>
-                <input className="ifield" type={showPass?"text":"password"} placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} required style={{paddingRight:42}} />
+                <input className="ifield" type={showPass?"text":"password"} placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} required style={{paddingRight:42}}/>
                 <button type="button" onClick={()=>setShowPass(p=>!p)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--muted)",display:"flex",alignItems:"center"}}>
-                  <Ico d={IC.eye} s={15} />
+                  <Ico d={IC.eye} s={15}/>
                 </button>
               </div>
             </div>
@@ -236,23 +230,10 @@ function AuthScreen({ onLogin }) {
             </button>
           </form>
 
-          {/* Demo credentials */}
-          <div style={{marginTop:24,paddingTop:20,borderTop:"1px solid var(--border)"}}>
-            <p style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.06em"}}>Demo Credentials</p>
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {USERS.map(u=>(
-                <button key={u.id} onClick={()=>{setEmail(u.email);setPass(u.password);}}
-                  style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 14px",borderRadius:9,background:"rgba(255,255,255,.03)",border:"1px solid var(--border)",cursor:"pointer",transition:"border-color .2s",fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",fontSize:12,textAlign:"left"}}
-                  onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(79,156,249,.35)"}
-                  onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
-                  <span style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{padding:"2px 7px",borderRadius:5,fontSize:10,fontWeight:700,background: u.role==="owner"?"rgba(249,169,79,.15)":"rgba(79,156,249,.15)",color:u.role==="owner"?"var(--amber)":"var(--blue)",textTransform:"uppercase"}}>{u.role}</span>
-                    {u.email}
-                  </span>
-                  <span style={{color:"rgba(255,255,255,.25)"}}>/ {u.password}</span>
-                </button>
-              ))}
-            </div>
+          <div style={{marginTop:20,paddingTop:16,borderTop:"1px solid var(--border)"}}>
+            <p style={{fontSize:11,color:"var(--muted)",textAlign:"center",letterSpacing:"0.06em"}}>
+              💡 Use the email &amp; password set up in your <strong style={{color:"var(--blue)"}}>Firebase Authentication</strong> console.
+            </p>
           </div>
         </div>
       </div>
@@ -270,14 +251,11 @@ function Sidebar({ active, setActive, user, onLogout }) {
   ];
   return (
     <aside style={{width:230,minWidth:230,height:"100%",background:"var(--surface)",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column",position:"relative",overflow:"hidden"}}>
-      {/* Top glow */}
       <div style={{position:"absolute",top:-60,left:"50%",transform:"translateX(-50%)",width:200,height:200,borderRadius:"50%",background:"radial-gradient(circle,rgba(79,156,249,.08),transparent 70%)",pointerEvents:"none"}}/>
-
-      {/* Brand */}
       <div style={{padding:"24px 20px 20px",borderBottom:"1px solid var(--border)"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#4f9cf9,#22d3a0)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 16px rgba(79,156,249,.25)",flexShrink:0}}>
-            <Ico d={IC.bread} s={18} c="text-white"/>
+            <Ico d={IC.bread} s={18}/>
           </div>
           <div>
             <p className="syne" style={{fontSize:14,fontWeight:800,color:"#fff",lineHeight:1.2}}>Skandan</p>
@@ -286,7 +264,6 @@ function Sidebar({ active, setActive, user, onLogout }) {
         </div>
       </div>
 
-      {/* Nav */}
       <nav style={{flex:1,padding:"14px 12px",display:"flex",flexDirection:"column",gap:2}}>
         <p style={{fontSize:10,fontWeight:600,color:"var(--muted)",letterSpacing:"0.1em",textTransform:"uppercase",padding:"4px 8px 10px"}}>Navigation</p>
         {nav.map(item=>{
@@ -298,8 +275,8 @@ function Sidebar({ active, setActive, user, onLogout }) {
                 color:isActive?"#fff":"var(--muted)",
                 borderLeft:isActive?"2px solid #4f9cf9":"2px solid transparent",
               }}
-              onMouseEnter={e=>{ if(!isActive){e.currentTarget.style.background="rgba(255,255,255,.04)"; e.currentTarget.style.color="#fff";}}}
-              onMouseLeave={e=>{ if(!isActive){e.currentTarget.style.background="transparent"; e.currentTarget.style.color="var(--muted)";}}}
+              onMouseEnter={e=>{ if(!isActive){e.currentTarget.style.background="rgba(255,255,255,.04)";e.currentTarget.style.color="#fff";}}}
+              onMouseLeave={e=>{ if(!isActive){e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--muted)";}}}
             >
               <Ico d={item.icon} s={16}/>
               {item.label}
@@ -309,21 +286,17 @@ function Sidebar({ active, setActive, user, onLogout }) {
         })}
       </nav>
 
-      {/* Role badge */}
       <div style={{margin:"0 12px 12px",padding:"12px 14px",borderRadius:12,background:"rgba(255,255,255,.03)",border:"1px solid var(--border)"}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
           <div style={{width:34,height:34,borderRadius:9,background:"linear-gradient(135deg,#4f9cf9 0%,#a78bfa 100%)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:"#fff",flexShrink:0}}>{user.avatar}</div>
           <div style={{minWidth:0}}>
             <p style={{fontSize:13,fontWeight:600,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name}</p>
-            <div style={{display:"flex",alignItems:"center",gap:5,marginTop:2}}>
-              <Ico d={user.role==="owner"?IC.eye:IC.pen} s={11} c="" style={{color: user.role==="owner"?"var(--amber)":"var(--blue)"}}/>
-              <p style={{fontSize:10,color: user.role==="owner"?"var(--amber)":"var(--blue)",textTransform:"uppercase",letterSpacing:"0.06em",fontWeight:700}}>{user.role==="owner"?"View Only":"Full Access"}</p>
-            </div>
+            <p style={{fontSize:10,color:user.role==="owner"?"var(--amber)":"var(--blue)",textTransform:"uppercase",letterSpacing:"0.06em",fontWeight:700,marginTop:2}}>{user.role==="owner"?"View Only":"Full Access"}</p>
           </div>
         </div>
         <button onClick={onLogout} style={{display:"flex",alignItems:"center",gap:7,width:"100%",padding:"7px 10px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:500,fontSize:12,color:"var(--muted)",background:"rgba(244,101,122,.06)",transition:"all .2s"}}
-          onMouseEnter={e=>{e.currentTarget.style.color="var(--red)"; e.currentTarget.style.background="rgba(244,101,122,.12)";}}
-          onMouseLeave={e=>{e.currentTarget.style.color="var(--muted)"; e.currentTarget.style.background="rgba(244,101,122,.06)";}}>
+          onMouseEnter={e=>{e.currentTarget.style.color="var(--red)";e.currentTarget.style.background="rgba(244,101,122,.12)";}}
+          onMouseLeave={e=>{e.currentTarget.style.color="var(--muted)";e.currentTarget.style.background="rgba(244,101,122,.06)";}}>
           <Ico d={IC.logout} s={13}/> Sign Out
         </button>
       </div>
@@ -346,7 +319,7 @@ function MetricCard({ label, value, sub, icon, accent, idx=0 }) {
       <div style={{position:"absolute",top:-20,right:-20,width:80,height:80,borderRadius:"50%",background:`radial-gradient(circle,${a.glow},transparent 70%)`}}/>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:14}}>
         <div style={{width:38,height:38,borderRadius:10,background:`rgba(255,255,255,.06)`,border:`1px solid ${a.b}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <Ico d={icon} s={16} style={{color:a.c}}/>
+          <Ico d={icon} s={16}/>
         </div>
         {sub && <span style={{fontSize:10,color:"var(--muted)",textTransform:"uppercase",letterSpacing:"0.08em",marginTop:4}}>{sub}</span>}
       </div>
@@ -365,14 +338,42 @@ function ReadOnlyBanner() {
   );
 }
 
+// ─── SECTION / FIELD ──────────────────────────────────────────
+function Section({ title, accent="blue", children }) {
+  const cols={green:"#22d3a0",red:"#f4657a",blue:"#4f9cf9",amber:"#f9a94f",purple:"#a78bfa"};
+  return (
+    <div style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:16,padding:"20px 22px",borderLeft:`3px solid ${cols[accent]}`}}>
+      <h3 style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:16,textTransform:"uppercase",letterSpacing:"0.08em"}}>{title}</h3>
+      {children}
+    </div>
+  );
+}
+function Field({ label, error, children }) {
+  return (
+    <div>
+      {label&&<label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--muted)",marginBottom:7,textTransform:"uppercase",letterSpacing:"0.07em"}}>{label}</label>}
+      {children}
+      {error&&<p style={{fontSize:11,color:"var(--red)",marginTop:5}}>{error}</p>}
+    </div>
+  );
+}
+
 // ─── DASHBOARD ────────────────────────────────────────────────
-function Dashboard({ entries, user }) {
+function Dashboard({ entries }) {
   const last7 = entries.slice(-7);
   const today  = entries[entries.length-1];
   const td     = totals(today);
-  const w7 = last7.reduce((a,e)=>{const t=totals(e);return{sales:a.sales+t.sales,exp:a.exp+t.expenses,waste:a.waste+t.wastage,profit:a.profit+t.profit};},{sales:0,exp:0,waste:0,profit:0});
+  const w7     = last7.reduce((a,e)=>{const t=totals(e);return{sales:a.sales+t.sales,exp:a.exp+t.expenses,waste:a.waste+t.wastage,profit:a.profit+t.profit};},{sales:0,exp:0,waste:0,profit:0});
   const wastePct = w7.sales>0?(w7.waste/w7.sales)*100:0;
-  const max14 = Math.max(...entries.slice(-14).map(e=>totals(e).sales),1);
+  const max14  = Math.max(...entries.slice(-14).map(e=>totals(e).sales),1);
+
+  if (!entries.length) return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:300,gap:16,color:"var(--muted)"}}>
+      <Ico d={IC.bread} s={48}/>
+      <p style={{fontSize:15,fontWeight:600}}>No entries yet</p>
+      <p style={{fontSize:13}}>Add your first daily entry to see data here.</p>
+    </div>
+  );
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:24}}>
@@ -386,7 +387,6 @@ function Dashboard({ entries, user }) {
         </div>
       </div>
 
-      {/* KPI row */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))",gap:14}}>
         <MetricCard label="Today's Sales"    value={INR(td.sales)}    sub="Today"  icon={IC.trend}  accent="green"  idx={0}/>
         <MetricCard label="Today's Expenses" value={INR(td.expenses)} sub="Today"  icon={IC.warn}   accent="red"    idx={1}/>
@@ -395,9 +395,7 @@ function Dashboard({ entries, user }) {
         <MetricCard label="7-Day Net Profit" value={INR(w7.profit)}   sub="7 days" icon={IC.spark}  accent="purple" idx={4}/>
       </div>
 
-      {/* Chart + breakdown */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:16}}>
-        {/* Bar chart */}
         <div className="fade-up card-glow" style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:18,padding:"22px 24px",animationDelay:"120ms"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
             <div>
@@ -407,14 +405,12 @@ function Dashboard({ entries, user }) {
             <div style={{display:"flex",gap:14}}>
               {[["Sales","var(--green)"],["Expenses","var(--red)"]].map(([l,c])=>(
                 <span key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"var(--muted)"}}>
-                  <span style={{width:10,height:3,borderRadius:2,background:c,display:"inline-block"}}/>
-                  {l}
+                  <span style={{width:10,height:3,borderRadius:2,background:c,display:"inline-block"}}/>{l}
                 </span>
               ))}
             </div>
           </div>
           <div style={{display:"flex",alignItems:"flex-end",gap:6,height:150,position:"relative"}}>
-            {/* Y grid lines */}
             {[0,25,50,75,100].map(p=>(
               <div key={p} style={{position:"absolute",left:0,right:0,bottom:`${p}%`,borderTop:"1px solid rgba(255,255,255,.04)",pointerEvents:"none"}}/>
             ))}
@@ -424,7 +420,6 @@ function Dashboard({ entries, user }) {
               return (
                 <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,height:"100%",position:"relative"}} className="chart-col">
                   <div style={{flex:1,display:"flex",alignItems:"flex-end",gap:1.5,width:"100%",position:"relative"}}>
-                    {/* Tooltip */}
                     <div style={{position:"absolute",bottom:"calc(100% + 8px)",left:"50%",transform:"translateX(-50%)",background:"#1a2744",border:"1px solid var(--border2)",borderRadius:8,padding:"7px 10px",fontSize:11,whiteSpace:"nowrap",pointerEvents:"none",opacity:0,transition:"opacity .15s",zIndex:10}} className="chart-tip">
                       <div style={{color:"#94a3b8",marginBottom:3}}>{entry.date}</div>
                       <div style={{color:"var(--green)"}}>Sales: {INR(t.sales)}</div>
@@ -440,7 +435,6 @@ function Dashboard({ entries, user }) {
           </div>
         </div>
 
-        {/* Sales breakdown */}
         <div className="fade-up" style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:18,padding:"22px 24px",animationDelay:"180ms"}}>
           <h3 style={{fontSize:15,fontWeight:700,color:"#fff",marginBottom:18}}>Today's Sales Breakdown</h3>
           {today && [
@@ -469,7 +463,6 @@ function Dashboard({ entries, user }) {
         </div>
       </div>
 
-      {/* Recent table */}
       <div className="fade-up" style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:18,overflow:"hidden",animationDelay:"240ms"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 24px",borderBottom:"1px solid var(--border)"}}>
           <h3 style={{fontSize:15,fontWeight:700,color:"#fff"}}>Recent 7 Days</h3>
@@ -489,7 +482,7 @@ function Dashboard({ entries, user }) {
                 const t=totals(e);
                 const day=new Date(e.date+"T00:00:00").toLocaleDateString("en-IN",{weekday:"short"});
                 return (
-                  <tr key={e.id} style={{borderTop:"1px solid var(--border)",transition:"background .15s",cursor:"default"}}
+                  <tr key={e.id||i} style={{borderTop:"1px solid var(--border)",transition:"background .15s",cursor:"default"}}
                     onMouseEnter={ev=>ev.currentTarget.style.background="rgba(255,255,255,.02)"}
                     onMouseLeave={ev=>ev.currentTarget.style.background="transparent"}>
                     <td style={{padding:"12px 18px",fontWeight:600,color:"#fff",whiteSpace:"nowrap"}}>{e.date}</td>
@@ -510,40 +503,42 @@ function Dashboard({ entries, user }) {
   );
 }
 
-// ─── SECTION WRAPPER ──────────────────────────────────────────
-function Section({ title, accent="blue", children }) {
-  const cols={green:"#22d3a0",red:"#f4657a",blue:"#4f9cf9",amber:"#f9a94f",purple:"#a78bfa"};
-  return (
-    <div style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:16,padding:"20px 22px",borderLeft:`3px solid ${cols[accent]}`}}>
-      <h3 style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:16,textTransform:"uppercase",letterSpacing:"0.08em"}}>{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function Field({ label, error, children }) {
-  return (
-    <div>
-      {label&&<label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--muted)",marginBottom:7,textTransform:"uppercase",letterSpacing:"0.07em"}}>{label}</label>}
-      {children}
-      {error&&<p style={{fontSize:11,color:"var(--red)",marginTop:5}}>{error}</p>}
-    </div>
-  );
-}
-
 // ─── DAILY ENTRY ──────────────────────────────────────────────
-function DailyEntry({ entries, setEntries, user }) {
+function DailyEntry({ entries, reloadEntries, user }) {
   const canEdit = user.role === "manager";
-  const [date, setDate]       = useState(todayStr());
-  const [sales, setSales]     = useState({cash:"",card:"",swiggy:""});
-  const [exps, setExps]       = useState([{item:"",amount:"",category:"Raw Materials"}]);
-  const [pos, setPos]         = useState([{vendor:"",invoice:"",paid:"",pending:""}]);
+  const [date,    setDate]    = useState(todayStr());
+  const [sales,   setSales]   = useState({cash:"",card:"",swiggy:""});
+  const [exps,    setExps]    = useState([{item:"",amount:"",category:"Raw Materials"}]);
+  const [pos,     setPos]     = useState([{vendor:"",invoice:"",paid:"",pending:""}]);
   const [opening, setOpening] = useState("");
   const [closing, setClosing] = useState("");
-  const [waste, setWaste]     = useState([{item:"",quantity:"",cost:""}]);
-  const [cash, setCash]       = useState({cashInHand:"",cashInBank:""});
-  const [saved, setSaved]     = useState(false);
-  const [errs, setErrs]       = useState({});
+  const [waste,   setWaste]   = useState([{item:"",quantity:"",cost:""}]);
+  const [cash,    setCash]    = useState({cashInHand:"",cashInBank:""});
+  const [saved,   setSaved]   = useState(false);
+  const [saving,  setSaving]  = useState(false);
+  const [errs,    setErrs]    = useState({});
+
+  // Auto-load existing entry when date changes
+  useEffect(()=>{
+    const existing = entries.find(e=>e.date===date);
+    if (existing) {
+      setSales(existing.sales || {cash:"",card:"",swiggy:""});
+      setExps(existing.expenses?.length ? existing.expenses : [{item:"",amount:"",category:"Raw Materials"}]);
+      setPos(existing.purchaseOrders?.length ? existing.purchaseOrders : [{vendor:"",invoice:"",paid:"",pending:""}]);
+      setOpening(existing.openingStock ?? "");
+      setClosing(existing.closingStock ?? "");
+      setWaste(existing.wastage?.length ? existing.wastage : [{item:"",quantity:"",cost:""}]);
+      setCash(existing.cashPosition || {cashInHand:"",cashInBank:""});
+    } else {
+      setSales({cash:"",card:"",swiggy:""});
+      setExps([{item:"",amount:"",category:"Raw Materials"}]);
+      setPos([{vendor:"",invoice:"",paid:"",pending:""}]);
+      setOpening(""); setClosing("");
+      setWaste([{item:"",quantity:"",cost:""}]);
+      setCash({cashInHand:"",cashInBank:""});
+    }
+    setSaved(false); setErrs({});
+  },[date, entries]);
 
   const upd = (setter,i,k,v) => setter(p=>p.map((r,idx)=>idx===i?{...r,[k]:v}:r));
   const add = setter => setter(p=>[...p,{}]);
@@ -557,20 +552,30 @@ function DailyEntry({ entries, setEntries, user }) {
     setErrs(e); return !Object.keys(e).length;
   };
 
-  const save = () => {
+  const save = async () => {
     if(!validate()) return;
-    const entry={
-      id:`e${Date.now()}`, date,
-      sales:{cash:+sales.cash||0,card:+sales.card||0,swiggy:+sales.swiggy||0},
-      expenses:exps.filter(x=>x.item).map(x=>({...x,amount:+x.amount||0})),
-      purchaseOrders:pos.filter(p=>p.vendor).map(p=>({...p,paid:+p.paid||0,pending:+p.pending||0})),
+    setSaving(true);
+    const entry = {
+      id: date,  // use date as document ID → easy lookup
+      date,
+      sales:{ cash:+sales.cash||0, card:+sales.card||0, swiggy:+sales.swiggy||0 },
+      expenses: exps.filter(x=>x.item).map(x=>({...x,amount:+x.amount||0})),
+      purchaseOrders: pos.filter(p=>p.vendor).map(p=>({...p,paid:+p.paid||0,pending:+p.pending||0})),
       openingStock:+opening||0, closingStock:+closing||0,
-      wastage:waste.filter(w=>w.item).map(w=>({...w,quantity:+w.quantity||0,cost:+w.cost||0})),
-      cashPosition:{cashInHand:+cash.cashInHand||0,cashInBank:+cash.cashInBank||0},
+      wastage: waste.filter(w=>w.item).map(w=>({...w,quantity:+w.quantity||0,cost:+w.cost||0})),
+      cashPosition:{ cashInHand:+cash.cashInHand||0, cashInBank:+cash.cashInBank||0 },
+      updatedAt: new Date().toISOString(),
+      updatedBy: user.email,
     };
-    setEntries(p=>[...p.filter(e=>e.date!==date),entry].sort((a,b)=>a.date.localeCompare(b.date)));
-    DB=[...DB.filter(e=>e.date!==date),entry].sort((a,b)=>a.date.localeCompare(b.date));
-    setSaved(true); setTimeout(()=>setSaved(false),3500);
+    try {
+      const { doc, setDoc } = FB();
+      await setDoc(doc(getDB(), "entries", date), entry);
+      await reloadEntries();
+      setSaved(true); setTimeout(()=>setSaved(false),3500);
+    } catch(ex) {
+      alert("Save failed: " + ex.message);
+    }
+    setSaving(false);
   };
 
   const totalSales = (+sales.cash||0)+(+sales.card||0)+(+sales.swiggy||0);
@@ -587,11 +592,10 @@ function DailyEntry({ entries, setEntries, user }) {
 
       {saved && (
         <div className="fade-up" style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",borderRadius:10,background:"rgba(34,211,160,.1)",border:"1px solid rgba(34,211,160,.25)",color:"var(--green)",fontSize:13}}>
-          <Ico d={IC.check} s={16}/> Entry for <strong>{date}</strong> saved successfully!
+          <Ico d={IC.check} s={16}/> Entry for <strong>{date}</strong> saved to Firebase!
         </div>
       )}
 
-      {/* Date */}
       <Section title="📅 Date" accent="blue">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
           <Field label="Entry Date" error={errs.date}>
@@ -606,20 +610,18 @@ function DailyEntry({ entries, setEntries, user }) {
         </div>
       </Section>
 
-      {/* Sales */}
       <Section title="💰 Daily Gross Sales" accent="green">
         {errs.sales&&<p style={{fontSize:12,color:"var(--red)",marginBottom:10}}>{errs.sales}</p>}
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
           {[["Cash Sales (₹)","cash"],["Card / UPI (₹)","card"],["Swiggy / Zomato (₹)","swiggy"]].map(([l,k])=>(
             <Field key={k} label={l}>
-              <input className="ifield" type="number" min="0" placeholder="0" value={sales[k]} onChange={e=>setSales(p=>({...p,[k]:e.target.value}))} disabled={!canEdit}/>
+              <input className="ifield" type="number" min="0" placeholder="0" value={sales[k]||""} onChange={e=>setSales(p=>({...p,[k]:e.target.value}))} disabled={!canEdit}/>
             </Field>
           ))}
         </div>
         {totalSales>0&&<div style={{marginTop:12,fontSize:12,color:"var(--green)"}}>Total: <strong>{INR(totalSales)}</strong></div>}
       </Section>
 
-      {/* Expenses */}
       <Section title="🧾 Expenses" accent="red">
         {exps.map((x,i)=>(
           <div key={i} style={{display:"grid",gridTemplateColumns:"3fr 2fr 2fr auto",gap:10,marginBottom:10,alignItems:"end"}}>
@@ -643,22 +645,13 @@ function DailyEntry({ entries, setEntries, user }) {
         {totalExp>0&&<div style={{marginTop:8,fontSize:12,color:"var(--red)"}}>Total: <strong>{INR(totalExp)}</strong></div>}
       </Section>
 
-      {/* POs */}
       <Section title="📦 Purchase Orders" accent="purple">
         {pos.map((p,i)=>(
           <div key={i} style={{display:"grid",gridTemplateColumns:"2.5fr 2fr 1.5fr 1.5fr auto",gap:10,marginBottom:10,alignItems:"end"}}>
-            <Field label={i===0?"Vendor":""}>
-              <input className="ifield" placeholder="Vendor name" value={p.vendor||""} onChange={e=>upd(setPos,i,"vendor",e.target.value)} disabled={!canEdit}/>
-            </Field>
-            <Field label={i===0?"Invoice No.":""}>
-              <input className="ifield" placeholder="INV-001" value={p.invoice||""} onChange={e=>upd(setPos,i,"invoice",e.target.value)} disabled={!canEdit}/>
-            </Field>
-            <Field label={i===0?"Paid (₹)":""}>
-              <input className="ifield" type="number" min="0" placeholder="0" value={p.paid||""} onChange={e=>upd(setPos,i,"paid",e.target.value)} disabled={!canEdit}/>
-            </Field>
-            <Field label={i===0?"Pending (₹)":""}>
-              <input className="ifield" type="number" min="0" placeholder="0" value={p.pending||""} onChange={e=>upd(setPos,i,"pending",e.target.value)} disabled={!canEdit}/>
-            </Field>
+            <Field label={i===0?"Vendor":""}><input className="ifield" placeholder="Vendor name" value={p.vendor||""} onChange={e=>upd(setPos,i,"vendor",e.target.value)} disabled={!canEdit}/></Field>
+            <Field label={i===0?"Invoice No.":""}><input className="ifield" placeholder="INV-001" value={p.invoice||""} onChange={e=>upd(setPos,i,"invoice",e.target.value)} disabled={!canEdit}/></Field>
+            <Field label={i===0?"Paid (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={p.paid||""} onChange={e=>upd(setPos,i,"paid",e.target.value)} disabled={!canEdit}/></Field>
+            <Field label={i===0?"Pending (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={p.pending||""} onChange={e=>upd(setPos,i,"pending",e.target.value)} disabled={!canEdit}/></Field>
             <div style={{paddingBottom:2}}>
               {canEdit&&pos.length>1&&<button onClick={()=>del(setPos,i)} style={{padding:"8px",background:"rgba(244,101,122,.1)",border:"1px solid rgba(244,101,122,.2)",borderRadius:8,cursor:"pointer",color:"var(--red)",display:"flex",alignItems:"center"}}><Ico d={IC.trash} s={14}/></button>}
             </div>
@@ -667,15 +660,10 @@ function DailyEntry({ entries, setEntries, user }) {
         {canEdit&&<button onClick={()=>add(setPos)} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:600,color:"var(--amber)",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}><Ico d={IC.plus} s={13}/>Add PO</button>}
       </Section>
 
-      {/* Stock */}
       <Section title="📊 Opening & Closing Stock" accent="amber">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-          <Field label="Opening Stock Value (₹)">
-            <input className="ifield" type="number" min="0" placeholder="0.00" value={opening} onChange={e=>setOpening(e.target.value)} disabled={!canEdit}/>
-          </Field>
-          <Field label="Closing Stock Value (₹)">
-            <input className="ifield" type="number" min="0" placeholder="0.00" value={closing} onChange={e=>setClosing(e.target.value)} disabled={!canEdit}/>
-          </Field>
+          <Field label="Opening Stock Value (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={opening} onChange={e=>setOpening(e.target.value)} disabled={!canEdit}/></Field>
+          <Field label="Closing Stock Value (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={closing} onChange={e=>setClosing(e.target.value)} disabled={!canEdit}/></Field>
         </div>
         {opening&&closing&&(
           <div style={{marginTop:10,fontSize:12,color:(+closing-(+opening))>=0?"var(--green)":"var(--amber)"}}>
@@ -684,7 +672,6 @@ function DailyEntry({ entries, setEntries, user }) {
         )}
       </Section>
 
-      {/* Wastage */}
       <Section title="⚠️ Wastage Details" accent="amber">
         {waste.map((w,i)=>(
           <div key={i} style={{display:"grid",gridTemplateColumns:"3fr 1.5fr 1.5fr auto",gap:10,marginBottom:10,alignItems:"end"}}>
@@ -697,23 +684,21 @@ function DailyEntry({ entries, setEntries, user }) {
         {canEdit&&<button onClick={()=>add(setWaste)} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:600,color:"var(--amber)",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}><Ico d={IC.plus} s={13}/>Add Item</button>}
       </Section>
 
-      {/* Cash Position */}
       <Section title="💵 End-of-Day Cash Position" accent="blue">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-          <Field label="Cash in Hand (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={cash.cashInHand} onChange={e=>setCash(p=>({...p,cashInHand:e.target.value}))} disabled={!canEdit}/></Field>
-          <Field label="Cash in Bank / Account (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={cash.cashInBank} onChange={e=>setCash(p=>({...p,cashInBank:e.target.value}))} disabled={!canEdit}/></Field>
+          <Field label="Cash in Hand (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={cash.cashInHand||""} onChange={e=>setCash(p=>({...p,cashInHand:e.target.value}))} disabled={!canEdit}/></Field>
+          <Field label="Cash in Bank / Account (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={cash.cashInBank||""} onChange={e=>setCash(p=>({...p,cashInBank:e.target.value}))} disabled={!canEdit}/></Field>
         </div>
       </Section>
 
       {canEdit ? (
-        <button onClick={save} style={{padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(135deg,#4f9cf9,#22d3a0)",color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:15,cursor:"pointer",boxShadow:"0 6px 24px rgba(79,156,249,.3)",transition:"opacity .2s,transform .15s"}}
-          onMouseEnter={e=>{e.currentTarget.style.opacity=".92";}}
-          onMouseLeave={e=>{e.currentTarget.style.opacity="1";}}>
-          Save Daily Entry
+        <button onClick={save} disabled={saving}
+          style={{padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(135deg,#4f9cf9,#22d3a0)",color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:15,cursor:saving?"not-allowed":"pointer",opacity:saving?.7:1,boxShadow:"0 6px 24px rgba(79,156,249,.3)",transition:"opacity .2s"}}>
+          {saving ? "Saving to Firebase…" : "Save Daily Entry"}
         </button>
       ) : (
         <div style={{textAlign:"center",padding:"14px",borderRadius:12,background:"rgba(249,169,79,.06)",border:"1px solid rgba(249,169,79,.15)",color:"var(--muted)",fontSize:13}}>
-          <Ico d={IC.lock} s={14} style={{display:"inline",marginRight:6}}/> Entry saving is disabled for Owner accounts
+          <Ico d={IC.lock} s={14}/> Entry saving is disabled for Owner accounts
         </div>
       )}
     </div>
@@ -817,8 +802,8 @@ function Weekly({ entries }) {
 // ─── MONTHLY REPORT ───────────────────────────────────────────
 function Monthly({ entries }) {
   const now = new Date();
-  const [yr,setYr]   = useState(now.getFullYear());
-  const [mo,setMo]   = useState(now.getMonth());
+  const [yr,setYr] = useState(now.getFullYear());
+  const [mo,setMo] = useState(now.getMonth());
 
   const days = new Date(yr,mo+1,0).getDate();
   const mEntries = useMemo(()=>Array.from({length:days},(_,i)=>{
@@ -832,39 +817,32 @@ function Monthly({ entries }) {
   },{sales:0,exp:0,waste:0,profit:0,po:0,cash:0}),[mEntries]);
 
   const wPct = mTot.sales>0?(mTot.waste/mTot.sales)*100:0;
-
   const prevMo = ()=>{ if(mo===0){setMo(11);setYr(y=>y-1);}else setMo(m=>m-1); };
   const nextMo = ()=>{ if(mo===11){setMo(0);setYr(y=>y+1);}else setMo(m=>m+1); };
 
   const downloadPDF = async () => {
     const { default: jsPDF } = await import("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js").then(()=>({default:window.jspdf.jsPDF})).catch(()=>({default:null}));
-    if(!jsPDF){ alert("jsPDF not available in this environment. In production, install via: npm install jspdf jspdf-autotable"); return; }
-
+    if(!jsPDF){ alert("jsPDF not available. In production: npm install jspdf jspdf-autotable"); return; }
     const doc = new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
     const W=297, H=210;
     doc.setFillColor(8,12,20); doc.rect(0,0,W,H,"F");
     doc.setFillColor(13,20,36); doc.rect(0,0,W,40,"F");
     doc.setDrawColor(79,156,249); doc.setLineWidth(.3); doc.line(0,40,W,40);
-
     doc.setTextColor(79,156,249); doc.setFontSize(7); doc.setFont("helvetica","bold");
     doc.text("SKANDAN ENTERPRISE · CK'S BAKERY FRANCHISE", W/2, 10, {align:"center"});
     doc.setTextColor(255,255,255); doc.setFontSize(16);
     doc.text(`${MONTH_NAMES[mo].toUpperCase()} ${yr} — MONTHLY REPORT`, W/2, 22, {align:"center"});
     doc.setTextColor(100,116,139); doc.setFontSize(7); doc.setFont("helvetica","normal");
     doc.text(`Generated: ${new Date().toLocaleString("en-IN")}`, W/2, 30, {align:"center"});
-
     const rows = mEntries.map((e,i)=>{
-      const ds=`${pad(i+1)} ${MONTH_NAMES[mo]}`;
-      const dn=DAY_NAMES[new Date(yr,mo,i+1).getDay()];
+      const ds=`${pad(i+1)} ${MONTH_NAMES[mo]}`; const dn=DAY_NAMES[new Date(yr,mo,i+1).getDay()];
       if(!e) return [ds,dn,"—","—","—","—","—","—","—","—"];
       const t=totals(e);
       return [ds,dn,INR(t.sales),INR(e.sales?.cash),INR(e.sales?.card),INR(e.sales?.swiggy),INR(t.expenses),INR(t.po),INR(t.wastage),INR(t.profit)];
     });
     rows.push(["TOTAL","",INR(mTot.sales),"","","",INR(mTot.exp),INR(mTot.po),`${INR(mTot.waste)} (${PCT(wPct)})`,INR(mTot.profit)]);
-
-    // autoTable via CDN
     try {
-      const at = (await import("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js").catch(()=>null));
+      await import("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js").catch(()=>null);
       doc.autoTable({
         startY:44,
         head:[["Date","Day","Gross Sales","Cash","Card/UPI","Swiggy/Zomato","Expenses","PO","Wastage","Net Profit"]],
@@ -875,7 +853,6 @@ function Monthly({ entries }) {
         didParseCell:d=>{if(d.row.index===rows.length-1){d.cell.styles.fillColor=[10,40,20];d.cell.styles.textColor=[34,211,160];d.cell.styles.fontStyle="bold";}},
       });
     } catch(e) { console.log("autoTable:",e); }
-
     doc.save(`Skandan_${MONTH_NAMES[mo]}_${yr}.pdf`);
   };
 
@@ -896,7 +873,6 @@ function Monthly({ entries }) {
         </div>
       </div>
 
-      {/* KPIs */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
         <MetricCard label="Total Sales"    value={INR(mTot.sales)}  icon={IC.trend}  accent="green"  idx={0}/>
         <MetricCard label="Total Expenses" value={INR(mTot.exp)}    icon={IC.warn}   accent="red"    idx={1}/>
@@ -906,7 +882,6 @@ function Monthly({ entries }) {
         <MetricCard label="Wastage %" value={PCT(wPct)} sub="of gross sales" icon={IC.trash} accent="amber" idx={5}/>
       </div>
 
-      {/* Formula card */}
       <div className="fade-up" style={{padding:"14px 20px",borderRadius:12,background:"rgba(249,169,79,.06)",border:"1px solid rgba(249,169,79,.18)"}}>
         <p style={{fontSize:11,fontWeight:700,color:"var(--amber)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>📐 Wastage % Formula</p>
         <p style={{fontSize:12,color:"var(--muted)"}}>
@@ -915,7 +890,6 @@ function Monthly({ entries }) {
         </p>
       </div>
 
-      {/* Table */}
       <div className="fade-up" style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:18,overflow:"hidden"}}>
         <div style={{overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
@@ -970,53 +944,102 @@ function Monthly({ entries }) {
 
 // ─── APP SHELL ────────────────────────────────────────────────
 function App() {
-  const [user,    setUser]    = useState(null);
-  const [view,    setView]    = useState("dashboard");
-  const [entries, setEntries] = useState(DB);
-  const [mobileOpen, setMO]  = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [user,        setUser]        = useState(null);
+  const [entries,     setEntries]     = useState([]);
+  const [loadingData, setLoadingData] = useState(false);
+  const [view,        setView]        = useState("dashboard");
+  const [mobileOpen,  setMO]          = useState(false);
 
-  if (!user) return <><style>{STYLES}</style><AuthScreen onLogin={setUser}/></>;
+  // ── Firebase Auth listener ──────────────────────────────────
+  useEffect(()=>{
+    // Wait for module script to initialise
+    const interval = setInterval(()=>{
+      if (!window.__auth || !window.__firebase) return;
+      clearInterval(interval);
+      const { onAuthStateChanged } = FB();
+      onAuthStateChanged(getAuth(), async (fbUser) => {
+        if (fbUser) {
+          let role = "manager";
+          let name = fbUser.displayName || fbUser.email.split("@")[0];
+          let avatar = name.slice(0,2).toUpperCase();
+          if (fbUser.email.toLowerCase().includes("owner")) role = "owner";
+          setUser({ uid:fbUser.uid, email:fbUser.email, role, name, avatar });
+        } else {
+          setUser(null);
+        }
+        setAuthChecked(true);
+      });
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ── Load entries from Firestore ─────────────────────────────
+  const loadEntries = useCallback(async () => {
+    if (!window.__db || !window.__firebase) return;
+    setLoadingData(true);
+    try {
+      const { collection, getDocs, query, orderBy } = FB();
+      const q = query(collection(getDB(), "entries"), orderBy("date", "asc"));
+      const snap = await getDocs(q);
+      const data = snap.docs.map(d => d.data());
+      setEntries(data);
+    } catch(ex) {
+      console.error("Load entries error:", ex);
+    }
+    setLoadingData(false);
+  }, []);
+
+  useEffect(()=>{
+    if (user) loadEntries();
+    else setEntries([]);
+  }, [user]);
+
+  const handleLogout = async () => {
+    const { signOut } = FB();
+    await signOut(getAuth());
+    setUser(null); setEntries([]);
+  };
+
+  if (!authChecked) return <><style>{STYLES}</style><LoadingScreen msg="Connecting to Firebase…"/></>;
+  if (!user)        return <><style>{STYLES}</style><AuthScreen onLogin={setUser}/></>;
 
   const views = {
-    dashboard: <Dashboard entries={entries} user={user}/>,
-    entry:     <DailyEntry entries={entries} setEntries={setEntries} user={user}/>,
+    dashboard: <Dashboard entries={entries}/>,
+    entry:     <DailyEntry entries={entries} reloadEntries={loadEntries} user={user}/>,
     weekly:    <Weekly entries={entries}/>,
     monthly:   <Monthly entries={entries}/>,
   };
 
   return (
     <>
-      <style>{STYLES}
-        {`
+      <style>{STYLES}{`
         .chart-col:hover .chart-tip{opacity:1!important;}
+        .mobile-menu-btn{display:none!important;}
         @media(max-width:768px){
           .app-sidebar{display:none!important;}
           .app-mobile-sidebar{display:flex!important;}
+          .mobile-menu-btn{display:flex!important;}
         }
-        `}
-      </style>
+      `}</style>
       <div style={{display:"flex",height:"100vh",overflow:"hidden",background:"var(--bg)"}}>
-        {/* Desktop sidebar */}
         <div className="app-sidebar">
-          <Sidebar active={view} setActive={setView} user={user} onLogout={()=>setUser(null)}/>
+          <Sidebar active={view} setActive={setView} user={user} onLogout={handleLogout}/>
         </div>
 
-        {/* Mobile overlay */}
         {mobileOpen&&(
           <div style={{position:"fixed",inset:0,zIndex:100,display:"flex"}} className="app-mobile-sidebar">
             <div style={{flex:1,background:"rgba(0,0,0,.7)"}} onClick={()=>setMO(false)}/>
             <div style={{width:230}}>
-              <Sidebar active={view} setActive={v=>{setView(v);setMO(false);}} user={user} onLogout={()=>setUser(null)}/>
+              <Sidebar active={view} setActive={v=>{setView(v);setMO(false);}} user={user} onLogout={handleLogout}/>
             </div>
           </div>
         )}
 
-        {/* Main */}
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-          {/* Topbar */}
           <header style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 28px",borderBottom:"1px solid var(--border)",background:"var(--surface)"}}>
             <div style={{display:"flex",alignItems:"center",gap:14}}>
-              <button onClick={()=>setMO(true)} style={{display:"none",padding:8,borderRadius:8,background:"rgba(255,255,255,.06)",border:"none",cursor:"pointer",color:"var(--muted)"}} className="mobile-menu-btn">
+              <button onClick={()=>setMO(true)} className="mobile-menu-btn" style={{padding:8,borderRadius:8,background:"rgba(255,255,255,.06)",border:"none",cursor:"pointer",color:"var(--muted)"}}>
                 <Ico d={IC.menu} s={18}/>
               </button>
               <div>
@@ -1029,13 +1052,18 @@ function App() {
               </div>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
+              {loadingData && (
+                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"var(--muted)"}}>
+                  <div style={{width:14,height:14,border:"2px solid rgba(79,156,249,.3)",borderTop:"2px solid #4f9cf9",borderRadius:"50%"}} className="spinner"/>
+                  Loading…
+                </div>
+              )}
               <div style={{padding:"5px 12px",borderRadius:7,fontSize:11,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",background:user.role==="owner"?"rgba(249,169,79,.1)":"rgba(79,156,249,.1)",color:user.role==="owner"?"var(--amber)":"var(--blue)",border:`1px solid ${user.role==="owner"?"rgba(249,169,79,.25)":"rgba(79,156,249,.25)"}`}}>
                 {user.role==="owner"?"👁 View Only":"✏️ Full Access"}
               </div>
             </div>
           </header>
 
-          {/* Content */}
           <main style={{flex:1,overflowY:"auto",padding:"28px 28px 40px",background:"var(--bg)"}}>
             <div style={{maxWidth:1100,margin:"0 auto"}}>
               {views[view]}
@@ -1046,7 +1074,6 @@ function App() {
     </>
   );
 }
-
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>
