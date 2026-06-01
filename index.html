@@ -8,6 +8,40 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="module">
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  doc,
+  setDoc
+}
+from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCF2irTdybQ-WOuYi2swQr9rigPICbaRLk",
+  authDomain: "skandan-enterprise.firebaseapp.com",
+  projectId: "skandan-enterprise",
+  storageBucket: "skandan-enterprise.firebasestorage.app",
+  messagingSenderId: "143123563000",
+  appId: "1:143123563000:web:2f8632fdbb3c133baf160d",
+  measurementId: "G-W16XP3GXVQ"
+};
+
+
+const app = initializeApp(firebaseConfig);
+
+const db = getFirestore(app);
+
+window.db = db;
+
+console.log("Firebase Connected");
+
+</script>
 </head>
 <body>
 <div id="root"></div>
