@@ -3,795 +3,608 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Skandan Enterprise</title>
-
+<title>Skandan Enterprise · CK's Bakery</title>
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
-
-// ── YOUR FIREBASE CONFIG ──────────────────────────────────────
 const firebaseConfig = {
-  apiKey: "AIzaSyCF2irTdybQ-WOuYi2swQr9rigPICbaRLk",
-  authDomain: "skandan-enterprise.firebaseapp.com",
-  projectId: "skandan-enterprise",
-  storageBucket: "skandan-enterprise.firebasestorage.app",
-  messagingSenderId: "143123563000",
-  appId: "1:143123563000:web:2f8632fdbb3c133baf160d",
-  measurementId: "G-W16XP3GXVQ"
+  apiKey:"AIzaSyCF2irTdybQ-WOuYi2swQr9rigPICbaRLk",
+  authDomain:"skandan-enterprise.firebaseapp.com",
+  projectId:"skandan-enterprise",
+  storageBucket:"skandan-enterprise.firebasestorage.app",
+  messagingSenderId:"143123563000",
+  appId:"1:143123563000:web:2f8632fdbb3c133baf160d",
+  measurementId:"G-W16XP3GXVQ"
 };
-
-const app  = initializeApp(firebaseConfig);
-const db   = getFirestore(app);
-const auth = getAuth(app);
-
-// Expose to React (runs in Babel/non-module context)
-window.__db   = db;
-window.__auth = auth;
-window.__firebase = { collection, getDocs, doc, setDoc, query, orderBy, signInWithEmailAndPassword, signOut, onAuthStateChanged };
-
-console.log("✅ Firebase initialised");
+const app=initializeApp(firebaseConfig);
+window.__db=getFirestore(app);
+window.__auth=getAuth(app);
+window.__firebase={collection,getDocs,doc,setDoc,deleteDoc,query,orderBy,signInWithEmailAndPassword,signOut,onAuthStateChanged};
+console.log("✅ Firebase ready");
 </script>
 </head>
 <body>
 <div id="root"></div>
-
 <script type="text/babel">
-const { useState, useEffect, useMemo, useRef, useCallback } = React;
+const {useState,useEffect,useMemo,useCallback,useRef}=React;
+const getDB=()=>window.__db;
+const getAu=()=>window.__auth;
+const FB=()=>window.__firebase;
 
-// ─── FIREBASE REFS ────────────────────────────────────────────
-// Accessed after module script runs
-const getDB   = () => window.__db;
-const getAuth = () => window.__auth;
-const FB      = () => window.__firebase;
-
-// ─── HELPERS ──────────────────────────────────────────────────
-const INR  = (n) => "₹" + Number(n||0).toLocaleString("en-IN");
-const PCT  = (n) => Number(n||0).toFixed(2) + "%";
-const pad  = (n) => String(n).padStart(2, "0");
-const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const DAY_NAMES   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
-
-const totals = (e) => {
-  if (!e) return { sales:0, expenses:0, wastage:0, po:0, profit:0 };
-  const sales    = (e.sales?.cash||0)+(e.sales?.card||0)+(e.sales?.swiggy||0);
-  const expenses = (e.expenses||[]).reduce((s,x)=>s+(x.amount||0),0);
-  const wastage  = (e.wastage||[]).reduce((s,x)=>s+(x.cost||0),0);
-  const po       = (e.purchaseOrders||[]).reduce((s,x)=>s+(x.paid||0)+(x.pending||0),0);
-  return { sales, expenses, wastage, po, profit: sales-expenses-wastage };
+/* ── helpers ─────────────────────────────────── */
+const INR=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
+const PCT=(n)=>Number(n||0).toFixed(2)+"%";
+const pad=(n)=>String(n).padStart(2,"0");
+const MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MNS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DN=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const todayStr=()=>{const d=new Date();return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
+const totals=(e)=>{
+  if(!e)return{sales:0,expenses:0,wastage:0,po:0,profit:0};
+  const sales=(e.sales?.cash||0)+(e.sales?.card||0)+(e.sales?.swiggy||0);
+  const expenses=(e.expenses||[]).reduce((s,x)=>s+(x.amount||0),0);
+  const wastage=(e.wastage||[]).reduce((s,x)=>s+(x.cost||0),0);
+  const po=(e.purchaseOrders||[]).reduce((s,x)=>s+(x.paid||0)+(x.pending||0),0);
+  return{sales,expenses,wastage,po,profit:sales-expenses-wastage};
 };
 
-// ─── ICONS ────────────────────────────────────────────────────
-const Ico = ({ d, s=18, c="" }) => (
-  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
-    strokeLinecap="round" strokeLinejoin="round" className={c}>
-    {Array.isArray(d) ? d.map((p,i)=><path key={i} d={p}/>) : <path d={d}/>}
+/* ── SVG icons ───────────────────────────────── */
+const Ico=({d,s=16,col="currentColor"})=>(
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    {Array.isArray(d)?d.map((p,i)=><path key={i} d={p}/>):<path d={d}/>}
   </svg>
 );
-const IC = {
-  home:    "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
-  pen:     ["M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7","M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"],
-  week:    "M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01",
-  cal:     ["M3 4h18v18H3z","M3 10h18","M8 2v4","M16 2v4"],
-  logout:  ["M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4","M16 17l5-5-5-5","M21 12H9"],
-  plus:    "M12 5v14 M5 12h14",
-  trash:   ["M3 6h18","M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"],
-  pdf:     ["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z","M14 2v6h6","M16 13H8","M16 17H8","M10 9H8"],
-  bread:   ["M18 8h1a4 4 0 0 1 0 8h-1","M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z","M6 1v3","M10 1v3","M14 1v3"],
-  trend:   ["M23 6l-9.5 9.5-5-5L1 18","M17 6h6v6"],
-  rupee:   "M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
-  box:     ["M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z","M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"],
-  warn:    ["M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0-3.42 0z","M12 9v4","M12 17h.01"],
-  eye:     ["M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z","M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"],
-  lock:    ["M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z","M7 11V7a5 5 0 0 1 10 0v4"],
-  chevron: "M9 18l6-6-6-6",
-  menu:    "M3 6h18 M3 12h18 M3 18h18",
-  check:   "M20 6L9 17l-5-5",
-  spark:   ["M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"],
-  spin:    "M12 2v4 M12 18v4 M4.93 4.93l2.83 2.83 M16.24 16.24l2.83 2.83 M2 12h4 M18 12h4 M4.93 19.07l2.83-2.83 M16.24 7.76l2.83-2.83",
+const I={
+  home:"M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
+  pen:["M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7","M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"],
+  list:["M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2","M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2","M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2","M9 12h6","M9 16h4"],
+  cal:["M3 4h18v18H3z","M3 10h18","M8 2v4","M16 2v4"],
+  logout:["M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4","M16 17l5-5-5-5","M21 12H9"],
+  plus:"M12 5v14 M5 12h14",
+  trash:["M3 6h18","M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"],
+  edit:["M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7","M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"],
+  pdf:["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z","M14 2v6h6","M16 13H8","M16 17H8","M10 9H8"],
+  bread:["M18 8h1a4 4 0 0 1 0 8h-1","M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z","M6 1v3","M10 1v3","M14 1v3"],
+  trend:["M23 6l-9.5 9.5-5-5L1 18","M17 6h6v6"],
+  rupee:"M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
+  box:["M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z","M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"],
+  warn:["M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z","M12 9v4","M12 17h.01"],
+  eye:["M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z","M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"],
+  lock:["M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z","M7 11V7a5 5 0 0 1 10 0v4"],
+  menu:"M3 6h18 M3 12h18 M3 18h18",
+  check:"M20 6L9 17l-5-5",
+  close:"M18 6L6 18 M6 6l12 12",
+  info:["M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z","M12 16v-4","M12 8h.01"],
+  spark:["M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"],
+  note:["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z","M14 2v6h6","M16 13H8","M16 17H8","M10 9H8"],
+  week:"M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01",
 };
 
-// ─── GLOBAL STYLES ────────────────────────────────────────────
-const STYLES = `
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Syne:wght@600;700;800&display=swap');
+/* ── GLOBAL STYLES (LIGHT THEME) ─────────────── */
+const STYLES=`
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Syne:wght@700;800&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:       #080c14;
-  --surface:  #0d1424;
-  --card:     #111827;
-  --border:   rgba(255,255,255,0.06);
-  --border2:  rgba(255,255,255,0.10);
-  --txt:      #e2e8f0;
-  --muted:    #64748b;
-  --green:    #22d3a0;
-  --red:      #f4657a;
-  --blue:     #4f9cf9;
-  --amber:    #f9a94f;
-  --purple:   #a78bfa;
-  --g1:linear-gradient(135deg,#1a2744 0%,#0d1424 100%);
+  --bg:#f0f4f8;
+  --bg2:#e8edf3;
+  --surface:#ffffff;
+  --card:#ffffff;
+  --card2:#f8fafc;
+  --border:#e2e8f0;
+  --border2:#cbd5e1;
+  --txt:#1e293b;
+  --txt2:#475569;
+  --muted:#94a3b8;
+  --green:#059669;
+  --green-bg:#d1fae5;
+  --green-border:#6ee7b7;
+  --red:#dc2626;
+  --red-bg:#fee2e2;
+  --red-border:#fca5a5;
+  --blue:#2563eb;
+  --blue-bg:#dbeafe;
+  --blue-border:#93c5fd;
+  --amber:#d97706;
+  --amber-bg:#fef3c7;
+  --amber-border:#fcd34d;
+  --purple:#7c3aed;
+  --purple-bg:#ede9fe;
+  --purple-border:#c4b5fd;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.10),0 4px 8px rgba(0,0,0,.06);
+  --radius:10px;
+  --radius-lg:14px;
 }
-body{background:var(--bg);color:var(--txt);font-family:'Plus Jakarta Sans',sans-serif;-webkit-font-smoothing:antialiased;}
+body{background:var(--bg);color:var(--txt);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;font-size:14px;}
 .syne{font-family:'Syne',sans-serif;}
-::-webkit-scrollbar{width:4px;height:4px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:4px;}
-.ifield{width:100%;padding:9px 13px;background:rgba(255,255,255,0.04);border:1px solid var(--border2);border-radius:9px;color:var(--txt);font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;outline:none;transition:border-color .2s,box-shadow .2s;}
-.ifield:focus{border-color:rgba(79,156,249,.5);box-shadow:0 0 0 3px rgba(79,156,249,.08);}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg2);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+.ifield{width:100%;padding:8px 12px;background:var(--card2);border:1.5px solid var(--border);border-radius:8px;color:var(--txt);font-size:13px;font-family:'Inter',sans-serif;outline:none;transition:border-color .18s,box-shadow .18s;}
+.ifield:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1);}
 .ifield::placeholder{color:var(--muted);}
-.ifield option{background:#1a2744;color:var(--txt);}
-input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
-input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.4);}
-@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
-@keyframes glowPulse{0%,100%{box-shadow:0 0 20px rgba(79,156,249,.12);}50%{box-shadow:0 0 35px rgba(79,156,249,.22);}}
+.ifield option{background:#fff;color:var(--txt);}
+.ifield:disabled{background:var(--bg2);color:var(--muted);cursor:not-allowed;}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}
+input[type=date]::-webkit-calendar-picker-indicator{filter:none;cursor:pointer;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
 @keyframes spin{to{transform:rotate(360deg);}}
-.fade-up{animation:fadeUp .35s ease both;}
-.card-glow{animation:glowPulse 4s ease-in-out infinite;}
-.grid-dots{background-image:radial-gradient(circle,rgba(255,255,255,.04) 1px,transparent 1px);background-size:24px 24px;}
-.spinner{animation:spin .8s linear infinite;}
+@keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px);}to{opacity:1;transform:none;}}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:none;}}
+.fade-up{animation:fadeUp .3s ease both;}
+.spinner-el{animation:spin .75s linear infinite;}
+.modal-in{animation:modalIn .2s ease both;}
+.slide-in{animation:slideIn .25s ease both;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn:disabled{opacity:.55;cursor:not-allowed;}
+.btn-primary{background:var(--blue);color:#fff;box-shadow:0 2px 6px rgba(37,99,235,.3);}
+.btn-primary:hover:not(:disabled){background:#1d4ed8;transform:translateY(-1px);}
+.btn-danger{background:var(--red);color:#fff;box-shadow:0 2px 6px rgba(220,38,38,.25);}
+.btn-danger:hover:not(:disabled){background:#b91c1c;}
+.btn-ghost{background:transparent;color:var(--txt2);border:1.5px solid var(--border);}
+.btn-ghost:hover{background:var(--bg2);border-color:var(--border2);}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:7px;}
+.ic-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:7px;border:1.5px solid var(--border);background:var(--card2);cursor:pointer;transition:all .15s;}
+.ic-btn:hover{border-color:var(--border2);background:var(--bg2);transform:scale(1.05);}
+.ic-btn-blue{border-color:var(--blue-border);background:var(--blue-bg);}
+.ic-btn-red{border-color:var(--red-border);background:var(--red-bg);}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.02em;}
+.tag-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);}
+.tag-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);}
+.tag-blue{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border);}
+.tag-amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border);}
+.tag-purple{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);}
+.section-head{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+tr.tr-hover:hover td{background:var(--bg2);}
+th{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;}
 `;
 
-// ─── LOADING SCREEN ───────────────────────────────────────────
-function LoadingScreen({ msg="Loading…" }) {
-  return (
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",flexDirection:"column",gap:16}}>
-      <div style={{width:48,height:48,border:"3px solid rgba(79,156,249,.2)",borderTop:"3px solid #4f9cf9",borderRadius:"50%"}} className="spinner"/>
+/* ── LOADING ─────────────────────────────────── */
+function Loader({msg="Loading…"}){
+  return(
+    <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"var(--bg)",gap:14}}>
+      <div style={{width:42,height:42,border:"3px solid var(--border)",borderTop:"3px solid var(--blue)",borderRadius:"50%"}} className="spinner-el"/>
       <p style={{color:"var(--muted)",fontSize:13}}>{msg}</p>
     </div>
   );
 }
 
-// ─── AUTH SCREEN (Firebase Auth) ─────────────────────────────
-function AuthScreen({ onLogin }) {
-  const [email,    setEmail]    = useState("");
-  const [pass,     setPass]     = useState("");
-  const [err,      setErr]      = useState("");
-  const [busy,     setBusy]     = useState(false);
-  const [showPass, setShowPass] = useState(false);
-
-  const submit = async (e) => {
-    e?.preventDefault();
-    setErr(""); setBusy(true);
-    try {
-      const { signInWithEmailAndPassword } = FB();
-      const cred = await signInWithEmailAndPassword(getAuth(), email, pass);
-      // role is stored as a custom claim or in Firestore users collection
-      // For now we read from Firestore /users/{uid}
-      const { getDocs, collection, doc } = FB();
-      // Try to fetch user profile from Firestore
-      const userDocRef = window.__firebase.doc(getDB(), "users", cred.user.uid);
-      const snap = await window.__firebase.getDocs ? null : null; // placeholder
-      // Fallback: derive role from email
-      let role = "manager";
-      let name = cred.user.displayName || cred.user.email.split("@")[0];
-      let avatar = name.slice(0,2).toUpperCase();
-      if (email.toLowerCase().includes("owner")) role = "owner";
-      onLogin({ uid: cred.user.uid, email: cred.user.email, role, name, avatar });
-    } catch (ex) {
-      const msg = ex.code === "auth/invalid-credential" || ex.code === "auth/wrong-password" || ex.code === "auth/user-not-found"
-        ? "Invalid email or password. Please try again."
-        : ex.code === "auth/too-many-requests"
-        ? "Too many attempts. Please wait a moment."
-        : ex.message || "Sign in failed.";
-      setErr(msg);
-    }
-    setBusy(false);
-  };
-
-  return (
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",position:"relative",overflow:"hidden"}}>
-      <div style={{position:"absolute",inset:0,pointerEvents:"none"}}>
-        <div style={{position:"absolute",top:"15%",left:"10%",width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(79,156,249,.07) 0%,transparent 70%)"}}/>
-        <div style={{position:"absolute",bottom:"10%",right:"8%",width:400,height:400,borderRadius:"50%",background:"radial-gradient(circle,rgba(34,211,160,.06) 0%,transparent 70%)"}}/>
-        <div className="grid-dots" style={{position:"absolute",inset:0,opacity:.6}}/>
-      </div>
-
-      <div style={{width:"100%",maxWidth:440,padding:"0 20px",position:"relative"}} className="fade-up">
-        <div style={{textAlign:"center",marginBottom:36}}>
-          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:58,height:58,borderRadius:16,background:"linear-gradient(135deg,#4f9cf9,#22d3a0)",marginBottom:16,boxShadow:"0 8px 32px rgba(79,156,249,.3)"}}>
-            <Ico d={IC.bread} s={26}/>
-          </div>
-          <h1 className="syne" style={{fontSize:26,fontWeight:800,color:"#fff",letterSpacing:"-0.5px"}}>Skandan Enterprise</h1>
-          <p style={{color:"var(--muted)",fontSize:13,marginTop:6,letterSpacing:"0.04em"}}>CK'S BAKERY FRANCHISE · OPERATIONS PORTAL</p>
-        </div>
-
-        <div style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:20,padding:36,boxShadow:"0 24px 64px rgba(0,0,0,.5)"}}>
-          <h2 style={{fontSize:18,fontWeight:700,color:"#fff",marginBottom:6}}>Welcome back</h2>
-          <p style={{color:"var(--muted)",fontSize:13,marginBottom:28}}>Sign in with your Firebase account</p>
-
-          <form onSubmit={submit} style={{display:"flex",flexDirection:"column",gap:16}}>
-            <div>
-              <label style={{display:"block",fontSize:12,fontWeight:600,color:"var(--muted)",marginBottom:7,textTransform:"uppercase",letterSpacing:"0.06em"}}>Email</label>
-              <input className="ifield" type="email" placeholder="your@email.com" value={email} onChange={e=>setEmail(e.target.value)} required />
-            </div>
-            <div>
-              <label style={{display:"block",fontSize:12,fontWeight:600,color:"var(--muted)",marginBottom:7,textTransform:"uppercase",letterSpacing:"0.06em"}}>Password</label>
-              <div style={{position:"relative"}}>
-                <input className="ifield" type={showPass?"text":"password"} placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} required style={{paddingRight:42}}/>
-                <button type="button" onClick={()=>setShowPass(p=>!p)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--muted)",display:"flex",alignItems:"center"}}>
-                  <Ico d={IC.eye} s={15}/>
-                </button>
-              </div>
-            </div>
-
-            {err && (
-              <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",borderRadius:9,background:"rgba(244,101,122,.1)",border:"1px solid rgba(244,101,122,.2)",color:"var(--red)",fontSize:13}}>
-                <Ico d={IC.warn} s={15}/> {err}
-              </div>
-            )}
-
-            <button type="submit" disabled={busy}
-              style={{marginTop:4,padding:"12px 0",borderRadius:10,border:"none",background:"linear-gradient(135deg,#4f9cf9,#22d3a0)",color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:14,cursor:busy?"not-allowed":"pointer",opacity:busy?.7:1,boxShadow:"0 4px 20px rgba(79,156,249,.3)",transition:"opacity .2s,transform .15s",transform:busy?"scale(.98)":"scale(1)"}}>
-              {busy ? "Signing in…" : "Sign In →"}
-            </button>
-          </form>
-
-          <div style={{marginTop:20,paddingTop:16,borderTop:"1px solid var(--border)"}}>
-            <p style={{fontSize:11,color:"var(--muted)",textAlign:"center",letterSpacing:"0.06em"}}>
-              💡 Use the email &amp; password set up in your <strong style={{color:"var(--blue)"}}>Firebase Authentication</strong> console.
-            </p>
-          </div>
+/* ── CONFIRM MODAL ───────────────────────────── */
+function Confirm({title,msg,onOk,onCancel,danger=true}){
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(15,23,42,.35)",backdropFilter:"blur(3px)"}}>
+      <div className="modal-in card" style={{maxWidth:400,width:"90%",padding:28,boxShadow:"var(--shadow-lg)"}}>
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:8}}>{title}</h3>
+        <p style={{color:"var(--txt2)",fontSize:13,lineHeight:1.7,marginBottom:24}}>{msg}</p>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+          <button className={`btn ${danger?"btn-danger":"btn-primary"}`} onClick={onOk}>{danger?"Delete":"Confirm"}</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── SIDEBAR ──────────────────────────────────────────────────
-function Sidebar({ active, setActive, user, onLogout }) {
-  const nav = [
-    { id:"dashboard", label:"Dashboard",      icon:IC.home  },
-    { id:"entry",     label:"Daily Entry",     icon:IC.pen   },
-    { id:"weekly",    label:"Weekly Summary",  icon:IC.week  },
-    { id:"monthly",   label:"Monthly Report",  icon:IC.cal   },
+/* ── DAY DETAIL POPUP ────────────────────────── */
+function DayDetail({entry,onClose,onEdit,isManager}){
+  const t=totals(entry);
+  const date=new Date(entry.date+"T00:00:00");
+  const dateLabel=date.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  const rows=[
+    {label:"Cash Sales",val:entry.sales?.cash,col:"green"},
+    {label:"Card / UPI",val:entry.sales?.card,col:"blue"},
+    {label:"Swiggy / Zomato",val:entry.sales?.swiggy,col:"amber"},
   ];
-  return (
-    <aside style={{width:230,minWidth:230,height:"100%",background:"var(--surface)",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column",position:"relative",overflow:"hidden"}}>
-      <div style={{position:"absolute",top:-60,left:"50%",transform:"translateX(-50%)",width:200,height:200,borderRadius:"50%",background:"radial-gradient(circle,rgba(79,156,249,.08),transparent 70%)",pointerEvents:"none"}}/>
-      <div style={{padding:"24px 20px 20px",borderBottom:"1px solid var(--border)"}}>
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:1500,display:"flex",alignItems:"flex-start",justifyContent:"center",background:"rgba(15,23,42,.3)",backdropFilter:"blur(3px)",overflowY:"auto",padding:"40px 16px"}}>
+      <div className="modal-in card" style={{width:"100%",maxWidth:700,boxShadow:"var(--shadow-lg)"}}>
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"20px 24px",borderBottom:"1px solid var(--border)",background:"linear-gradient(135deg,#eff6ff,#f0fdf4)",borderRadius:"var(--radius-lg) var(--radius-lg) 0 0"}}>
+          <div>
+            <div className="tag tag-blue" style={{marginBottom:6}}>Daily Report</div>
+            <h2 className="syne" style={{fontSize:20,fontWeight:800,color:"var(--txt)"}}>{dateLabel}</h2>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            {isManager&&<button className="btn btn-primary btn-sm" onClick={onEdit}><Ico d={I.edit} s={13}/>Edit</button>}
+            <button className="ic-btn" onClick={onClose}><Ico d={I.close} s={15}/></button>
+          </div>
+        </div>
+
+        <div style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:20}}>
+          {/* KPI row */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+            {[
+              {label:"Gross Sales",val:INR(t.sales),col:"green"},
+              {label:"Total Expenses",val:INR(t.expenses),col:"red"},
+              {label:"Wastage",val:INR(t.wastage),col:"amber"},
+              {label:"Net Profit",val:INR(t.profit),col:t.profit>=0?"green":"red"},
+            ].map(k=>(
+              <div key={k.label} style={{padding:"14px 16px",borderRadius:10,background:`var(--${k.col}-bg)`,border:`1px solid var(--${k.col}-border)`}}>
+                <p style={{fontSize:10,fontWeight:700,color:`var(--${k.col})`,textTransform:"uppercase",letterSpacing:".06em",marginBottom:5}}>{k.label}</p>
+                <p className="syne" style={{fontSize:18,fontWeight:800,color:`var(--${k.col})`}}>{k.val}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Sales breakdown */}
+          <div>
+            <p className="section-head" style={{marginBottom:10}}>Sales Breakdown</p>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {rows.map(r=>{
+                const pct=t.sales>0?((r.val||0)/t.sales)*100:0;
+                return(
+                  <div key={r.label} style={{display:"flex",alignItems:"center",gap:12}}>
+                    <span style={{width:120,fontSize:12,color:"var(--txt2)",flexShrink:0}}>{r.label}</span>
+                    <div style={{flex:1,height:7,background:"var(--bg2)",borderRadius:4,overflow:"hidden"}}>
+                      <div style={{height:"100%",width:`${pct}%`,background:`var(--${r.col})`,borderRadius:4}}/>
+                    </div>
+                    <span style={{width:80,fontSize:12,fontWeight:600,textAlign:"right",color:`var(--${r.col})`}}>{INR(r.val)}</span>
+                    <span style={{width:40,fontSize:11,color:"var(--muted)",textAlign:"right"}}>{pct.toFixed(0)}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Expenses with remark */}
+          {entry.expenses?.length>0&&(
+            <div>
+              <p className="section-head" style={{marginBottom:10}}>Expenses</p>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead><tr style={{background:"var(--bg2)"}}>
+                  {["Item","Category","Amount","Remark"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left"}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {entry.expenses.map((x,i)=>(
+                    <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)"}}>
+                      <td style={{padding:"8px 12px",fontWeight:500}}>{x.item}</td>
+                      <td style={{padding:"8px 12px"}}><span className={`tag tag-${x.category==="Salary"?"purple":x.category==="Utilities"?"blue":"amber"}`}>{x.category}</span></td>
+                      <td style={{padding:"8px 12px",fontWeight:600,color:"var(--red)"}}>{INR(x.amount)}</td>
+                      <td style={{padding:"8px 12px",color:"var(--txt2)",fontStyle:x.remark?"normal":"italic",fontSize:11}}>{x.remark||"—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Wastage */}
+          {entry.wastage?.filter(w=>w.item).length>0&&(
+            <div>
+              <p className="section-head" style={{marginBottom:10}}>Wastage Details</p>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead><tr style={{background:"var(--bg2)"}}>
+                  {["Item","Quantity","Cost"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left"}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {entry.wastage.filter(w=>w.item).map((w,i)=>(
+                    <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)"}}>
+                      <td style={{padding:"8px 12px",fontWeight:500}}>{w.item}</td>
+                      <td style={{padding:"8px 12px"}}>{w.quantity}</td>
+                      <td style={{padding:"8px 12px",fontWeight:600,color:"var(--amber)"}}>{INR(w.cost)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* POs */}
+          {entry.purchaseOrders?.filter(p=>p.vendor).length>0&&(
+            <div>
+              <p className="section-head" style={{marginBottom:10}}>Purchase Orders</p>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead><tr style={{background:"var(--bg2)"}}>
+                  {["Vendor","Invoice","Paid","Pending"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left"}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {entry.purchaseOrders.filter(p=>p.vendor).map((p,i)=>(
+                    <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)"}}>
+                      <td style={{padding:"8px 12px",fontWeight:500}}>{p.vendor}</td>
+                      <td style={{padding:"8px 12px",color:"var(--txt2)"}}>{p.invoice||"—"}</td>
+                      <td style={{padding:"8px 12px",fontWeight:600,color:"var(--green)"}}>{INR(p.paid)}</td>
+                      <td style={{padding:"8px 12px",fontWeight:600,color:"var(--red)"}}>{INR(p.pending)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Cash position */}
+          <div style={{display:"flex",gap:12}}>
+            <div style={{flex:1,padding:"12px 16px",borderRadius:10,background:"var(--blue-bg)",border:"1px solid var(--blue-border)"}}>
+              <p style={{fontSize:11,fontWeight:700,color:"var(--blue)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Cash in Hand (EOD)</p>
+              <p className="syne" style={{fontSize:18,fontWeight:800,color:"var(--blue)"}}>{INR(entry.cashPosition?.cashInHand)}</p>
+            </div>
+            <div style={{flex:1,padding:"12px 16px",borderRadius:10,background:"var(--green-bg)",border:"1px solid var(--green-border)"}}>
+              <p style={{fontSize:11,fontWeight:700,color:"var(--green)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Cash in Bank (EOD)</p>
+              <p className="syne" style={{fontSize:18,fontWeight:800,color:"var(--green)"}}>{INR(entry.cashPosition?.cashInBank)}</p>
+            </div>
+            {(entry.openingStock||entry.closingStock)&&(
+              <div style={{flex:1,padding:"12px 16px",borderRadius:10,background:"var(--amber-bg)",border:"1px solid var(--amber-border)"}}>
+                <p style={{fontSize:11,fontWeight:700,color:"var(--amber)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Stock O→C</p>
+                <p className="syne" style={{fontSize:18,fontWeight:800,color:"var(--amber)"}}>{INR(entry.openingStock)} → {INR(entry.closingStock)}</p>
+              </div>
+            )}
+          </div>
+
+          {entry.updatedBy&&(
+            <p style={{fontSize:11,color:"var(--muted)",textAlign:"right"}}>Last updated by {entry.updatedBy} · {entry.updatedAt?new Date(entry.updatedAt).toLocaleString("en-IN"):""}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── AUTH SCREEN ─────────────────────────────── */
+function AuthScreen(){
+  const [email,setEmail]=useState("");
+  const [pass,setPass]=useState("");
+  const [err,setErr]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [sp,setSp]=useState(false);
+  const submit=async(e)=>{
+    e?.preventDefault();setErr("");setBusy(true);
+    try{await FB().signInWithEmailAndPassword(getAu(),email,pass);}
+    catch(ex){setErr(ex.code==="auth/invalid-credential"||ex.code==="auth/wrong-password"||ex.code==="auth/user-not-found"?"Invalid email or password.":ex.code==="auth/too-many-requests"?"Too many attempts.":ex.message||"Sign-in failed.");}
+    setBusy(false);
+  };
+  return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#eff6ff 0%,#f0fdf4 100%)"}}>
+      <div className="fade-up" style={{width:"100%",maxWidth:420,padding:"0 20px"}}>
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:56,height:56,borderRadius:14,background:"var(--blue)",marginBottom:14,boxShadow:"0 8px 24px rgba(37,99,235,.25)"}}>
+            <Ico d={I.bread} s={24} col="#fff"/>
+          </div>
+          <h1 className="syne" style={{fontSize:24,fontWeight:800,color:"var(--txt)"}}>Skandan Enterprise</h1>
+          <p style={{color:"var(--muted)",fontSize:13,marginTop:5,letterSpacing:".04em"}}>CK'S BAKERY · OPERATIONS PORTAL</p>
+        </div>
+        <div className="card" style={{padding:32,boxShadow:"var(--shadow-lg)"}}>
+          <h2 style={{fontSize:17,fontWeight:700,marginBottom:4}}>Sign in</h2>
+          <p style={{color:"var(--muted)",fontSize:12,marginBottom:24}}>Use your Firebase account credentials</p>
+          <form onSubmit={submit} style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--txt2)",marginBottom:6,textTransform:"uppercase",letterSpacing:".06em"}}>Email</label>
+              <input className="ifield" type="email" placeholder="your@email.com" value={email} onChange={e=>setEmail(e.target.value)} required/>
+            </div>
+            <div>
+              <label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--txt2)",marginBottom:6,textTransform:"uppercase",letterSpacing:".06em"}}>Password</label>
+              <div style={{position:"relative"}}>
+                <input className="ifield" type={sp?"text":"password"} placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} required style={{paddingRight:40}}/>
+                <button type="button" onClick={()=>setSp(p=>!p)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--muted)"}}><Ico d={I.eye} s={14}/></button>
+              </div>
+            </div>
+            {err&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,background:"var(--red-bg)",border:"1px solid var(--red-border)",color:"var(--red)",fontSize:12}}><Ico d={I.warn} s={14}/>{err}</div>}
+            <button type="submit" disabled={busy} className="btn btn-primary" style={{marginTop:4,justifyContent:"center",padding:"11px 0",fontSize:14}}>
+              {busy?"Signing in…":"Sign In →"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── SIDEBAR ─────────────────────────────────── */
+function Sidebar({active,setActive,user,onLogout}){
+  const nav=[
+    {id:"dashboard",label:"Dashboard",icon:I.home},
+    {id:"entry",label:"Daily Entry",icon:I.pen},
+    {id:"entries",label:"All Entries",icon:I.list},
+    {id:"monthly",label:"Monthly Report",icon:I.cal},
+  ];
+  return(
+    <aside style={{width:220,minWidth:220,height:"100%",background:"var(--surface)",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column",boxShadow:"1px 0 0 var(--border)"}}>
+      <div style={{padding:"20px 16px 16px",borderBottom:"1px solid var(--border)"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#4f9cf9,#22d3a0)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 16px rgba(79,156,249,.25)",flexShrink:0}}>
-            <Ico d={IC.bread} s={18}/>
+          <div style={{width:34,height:34,borderRadius:9,background:"var(--blue)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 2px 8px rgba(37,99,235,.25)"}}>
+            <Ico d={I.bread} s={16} col="#fff"/>
           </div>
           <div>
-            <p className="syne" style={{fontSize:14,fontWeight:800,color:"#fff",lineHeight:1.2}}>Skandan</p>
-            <p style={{fontSize:10,color:"var(--muted)",letterSpacing:"0.05em",textTransform:"uppercase"}}>Enterprise</p>
+            <p className="syne" style={{fontSize:14,fontWeight:800,lineHeight:1.1}}>Skandan</p>
+            <p style={{fontSize:10,color:"var(--muted)",letterSpacing:".05em",textTransform:"uppercase"}}>Enterprise</p>
           </div>
         </div>
       </div>
-
-      <nav style={{flex:1,padding:"14px 12px",display:"flex",flexDirection:"column",gap:2}}>
-        <p style={{fontSize:10,fontWeight:600,color:"var(--muted)",letterSpacing:"0.1em",textTransform:"uppercase",padding:"4px 8px 10px"}}>Navigation</p>
+      <nav style={{flex:1,padding:"12px 10px",display:"flex",flexDirection:"column",gap:2}}>
+        <p style={{fontSize:10,fontWeight:700,color:"var(--muted)",letterSpacing:".1em",textTransform:"uppercase",padding:"4px 8px 8px"}}>Menu</p>
         {nav.map(item=>{
-          const isActive = active===item.id;
-          return (
+          const isA=active===item.id;
+          return(
             <button key={item.id} onClick={()=>setActive(item.id)}
-              style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:isActive?600:500,fontSize:13,textAlign:"left",transition:"all .2s",
-                background:isActive?"linear-gradient(135deg,rgba(79,156,249,.15),rgba(34,211,160,.08))":"transparent",
-                color:isActive?"#fff":"var(--muted)",
-                borderLeft:isActive?"2px solid #4f9cf9":"2px solid transparent",
-              }}
-              onMouseEnter={e=>{ if(!isActive){e.currentTarget.style.background="rgba(255,255,255,.04)";e.currentTarget.style.color="#fff";}}}
-              onMouseLeave={e=>{ if(!isActive){e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--muted)";}}}
+              style={{display:"flex",alignItems:"center",gap:9,padding:"9px 11px",borderRadius:9,border:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:isA?600:500,fontSize:13,textAlign:"left",transition:"all .15s",
+                background:isA?"var(--blue-bg)":"transparent",
+                color:isA?"var(--blue)":"var(--txt2)",
+                borderLeft:isA?"2px solid var(--blue)":"2px solid transparent"}}
+              onMouseEnter={e=>{if(!isA){e.currentTarget.style.background="var(--bg2)";e.currentTarget.style.color="var(--txt)";}}}
+              onMouseLeave={e=>{if(!isA){e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--txt2)";}}}
             >
-              <Ico d={item.icon} s={16}/>
+              <Ico d={item.icon} s={15} col={isA?"var(--blue)":"var(--muted)"}/>
               {item.label}
-              {isActive && <span style={{marginLeft:"auto",width:5,height:5,borderRadius:"50%",background:"#4f9cf9",boxShadow:"0 0 6px #4f9cf9"}}/>}
             </button>
           );
         })}
       </nav>
-
-      <div style={{margin:"0 12px 12px",padding:"12px 14px",borderRadius:12,background:"rgba(255,255,255,.03)",border:"1px solid var(--border)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-          <div style={{width:34,height:34,borderRadius:9,background:"linear-gradient(135deg,#4f9cf9 0%,#a78bfa 100%)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:"#fff",flexShrink:0}}>{user.avatar}</div>
+      <div style={{margin:"0 10px 12px",padding:"12px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:10}}>
+          <div style={{width:32,height:32,borderRadius:8,background:user.role==="owner"?"var(--amber)":"var(--blue)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:"#fff",flexShrink:0}}>{user.avatar}</div>
           <div style={{minWidth:0}}>
-            <p style={{fontSize:13,fontWeight:600,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name}</p>
-            <p style={{fontSize:10,color:user.role==="owner"?"var(--amber)":"var(--blue)",textTransform:"uppercase",letterSpacing:"0.06em",fontWeight:700,marginTop:2}}>{user.role==="owner"?"View Only":"Full Access"}</p>
+            <p style={{fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name}</p>
+            <span className={`tag ${user.role==="owner"?"tag-amber":"tag-blue"}`} style={{marginTop:2}}>
+              {user.role==="owner"?"👁 Owner":"✏️ Manager"}
+            </span>
           </div>
         </div>
-        <button onClick={onLogout} style={{display:"flex",alignItems:"center",gap:7,width:"100%",padding:"7px 10px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:500,fontSize:12,color:"var(--muted)",background:"rgba(244,101,122,.06)",transition:"all .2s"}}
-          onMouseEnter={e=>{e.currentTarget.style.color="var(--red)";e.currentTarget.style.background="rgba(244,101,122,.12)";}}
-          onMouseLeave={e=>{e.currentTarget.style.color="var(--muted)";e.currentTarget.style.background="rgba(244,101,122,.06)";}}>
-          <Ico d={IC.logout} s={13}/> Sign Out
+        <button onClick={onLogout} className="btn btn-ghost btn-sm" style={{width:"100%",justifyContent:"center"}}>
+          <Ico d={I.logout} s={13}/>Sign Out
         </button>
       </div>
     </aside>
   );
 }
 
-// ─── METRIC CARD ──────────────────────────────────────────────
-function MetricCard({ label, value, sub, icon, accent, idx=0 }) {
-  const accents = {
-    green:  { g:"linear-gradient(135deg,rgba(34,211,160,.12),rgba(34,211,160,.04))", b:"rgba(34,211,160,.2)", c:"#22d3a0", glow:"rgba(34,211,160,.15)" },
-    red:    { g:"linear-gradient(135deg,rgba(244,101,122,.12),rgba(244,101,122,.04))", b:"rgba(244,101,122,.2)", c:"#f4657a", glow:"rgba(244,101,122,.15)" },
-    blue:   { g:"linear-gradient(135deg,rgba(79,156,249,.12),rgba(79,156,249,.04))", b:"rgba(79,156,249,.2)", c:"#4f9cf9", glow:"rgba(79,156,249,.15)" },
-    amber:  { g:"linear-gradient(135deg,rgba(249,169,79,.12),rgba(249,169,79,.04))", b:"rgba(249,169,79,.2)", c:"#f9a94f", glow:"rgba(249,169,79,.15)" },
-    purple: { g:"linear-gradient(135deg,rgba(167,139,250,.12),rgba(167,139,250,.04))", b:"rgba(167,139,250,.2)", c:"#a78bfa", glow:"rgba(167,139,250,.15)" },
-  };
-  const a = accents[accent]||accents.blue;
-  return (
-    <div className="fade-up" style={{animationDelay:`${idx*60}ms`,background:a.g,border:`1px solid ${a.b}`,borderRadius:16,padding:"20px 20px 18px",position:"relative",overflow:"hidden",cursor:"default"}}>
-      <div style={{position:"absolute",top:-20,right:-20,width:80,height:80,borderRadius:"50%",background:`radial-gradient(circle,${a.glow},transparent 70%)`}}/>
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:14}}>
-        <div style={{width:38,height:38,borderRadius:10,background:`rgba(255,255,255,.06)`,border:`1px solid ${a.b}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <Ico d={icon} s={16}/>
+/* ── METRIC CARD ─────────────────────────────── */
+function KCard({label,value,sub,icon,col,idx=0}){
+  return(
+    <div className="fade-up card" style={{animationDelay:`${idx*55}ms`,padding:"18px 20px",borderTop:`3px solid var(--${col})`}}>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
+        <div style={{width:36,height:36,borderRadius:9,background:`var(--${col}-bg)`,border:`1px solid var(--${col}-border)`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <Ico d={icon} s={15} col={`var(--${col})`}/>
         </div>
-        {sub && <span style={{fontSize:10,color:"var(--muted)",textTransform:"uppercase",letterSpacing:"0.08em",marginTop:4}}>{sub}</span>}
+        {sub&&<span style={{fontSize:10,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".07em",fontWeight:600}}>{sub}</span>}
       </div>
-      <p style={{fontSize:22,fontWeight:800,color:"#fff",fontFamily:"'Syne',sans-serif",letterSpacing:"-0.5px"}}>{value}</p>
-      <p style={{fontSize:12,color:a.c,fontWeight:600,marginTop:3,textTransform:"uppercase",letterSpacing:"0.05em"}}>{label}</p>
+      <p className="syne" style={{fontSize:21,fontWeight:800,color:`var(--${col})`,letterSpacing:"-.3px"}}>{value}</p>
+      <p style={{fontSize:11,color:"var(--txt2)",fontWeight:600,marginTop:3,textTransform:"uppercase",letterSpacing:".05em"}}>{label}</p>
     </div>
   );
 }
 
-// ─── ROLE GUARD ───────────────────────────────────────────────
-function ReadOnlyBanner() {
-  return (
-    <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 16px",borderRadius:10,background:"rgba(249,169,79,.08)",border:"1px solid rgba(249,169,79,.2)",marginBottom:20,fontSize:13,color:"var(--amber)"}}>
-      <Ico d={IC.lock} s={15}/> <strong>View-Only Access</strong> — You are logged in as Owner. Data entry and editing is restricted to the Store Manager.
-    </div>
-  );
-}
-
-// ─── SECTION / FIELD ──────────────────────────────────────────
-function Section({ title, accent="blue", children }) {
-  const cols={green:"#22d3a0",red:"#f4657a",blue:"#4f9cf9",amber:"#f9a94f",purple:"#a78bfa"};
-  return (
-    <div style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:16,padding:"20px 22px",borderLeft:`3px solid ${cols[accent]}`}}>
-      <h3 style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:16,textTransform:"uppercase",letterSpacing:"0.08em"}}>{title}</h3>
+/* ── SECTION WRAPPER ─────────────────────────── */
+function Sec({title,col="blue",children}){
+  const C={green:"var(--green)",red:"var(--red)",blue:"var(--blue)",amber:"var(--amber)",purple:"var(--purple)"};
+  return(
+    <div className="card" style={{padding:"18px 20px",borderLeft:`3px solid ${C[col]||C.blue}`}}>
+      <p style={{fontSize:12,fontWeight:700,color:"var(--txt2)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:14}}>{title}</p>
       {children}
     </div>
   );
 }
-function Field({ label, error, children }) {
-  return (
+function Fld({label,error,children}){
+  return(
     <div>
-      {label&&<label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--muted)",marginBottom:7,textTransform:"uppercase",letterSpacing:"0.07em"}}>{label}</label>}
+      {label&&<label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--txt2)",marginBottom:6,textTransform:"uppercase",letterSpacing:".06em"}}>{label}</label>}
       {children}
-      {error&&<p style={{fontSize:11,color:"var(--red)",marginTop:5}}>{error}</p>}
+      {error&&<p style={{fontSize:11,color:"var(--red)",marginTop:4}}>{error}</p>}
+    </div>
+  );
+}
+function OwnerBanner(){
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px",borderRadius:9,background:"var(--amber-bg)",border:"1px solid var(--amber-border)",marginBottom:16,fontSize:13,color:"var(--amber)"}}>
+      <Ico d={I.lock} s={15} col="var(--amber)"/>
+      <strong>Owner View-Only</strong> — Only the Store Manager can add, edit or delete entries.
     </div>
   );
 }
 
-// ─── DASHBOARD ────────────────────────────────────────────────
-function Dashboard({ entries }) {
-  const last7 = entries.slice(-7);
-  const today  = entries[entries.length-1];
-  const td     = totals(today);
-  const w7     = last7.reduce((a,e)=>{const t=totals(e);return{sales:a.sales+t.sales,exp:a.exp+t.expenses,waste:a.waste+t.wastage,profit:a.profit+t.profit};},{sales:0,exp:0,waste:0,profit:0});
-  const wastePct = w7.sales>0?(w7.waste/w7.sales)*100:0;
-  const max14  = Math.max(...entries.slice(-14).map(e=>totals(e).sales),1);
-
-  if (!entries.length) return (
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:300,gap:16,color:"var(--muted)"}}>
-      <Ico d={IC.bread} s={48}/>
-      <p style={{fontSize:15,fontWeight:600}}>No entries yet</p>
+/* ── DASHBOARD ───────────────────────────────── */
+function Dashboard({entries,onViewDate}){
+  const last7=entries.slice(-7),today=entries[entries.length-1],td=totals(today);
+  const w7=last7.reduce((a,e)=>{const t=totals(e);return{sales:a.sales+t.sales,exp:a.exp+t.expenses,waste:a.waste+t.wastage,profit:a.profit+t.profit};},{sales:0,exp:0,waste:0,profit:0});
+  const wPct=w7.sales>0?(w7.waste/w7.sales)*100:0;
+  const max14=Math.max(...entries.slice(-14).map(e=>totals(e).sales),1);
+  if(!entries.length)return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:320,gap:12,color:"var(--muted)"}}>
+      <Ico d={I.bread} s={44}/><p style={{fontSize:15,fontWeight:600}}>No entries yet</p>
       <p style={{fontSize:13}}>Add your first daily entry to see data here.</p>
     </div>
   );
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:24}}>
-      <div className="fade-up">
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
-          <div>
-            <h2 className="syne" style={{fontSize:22,fontWeight:800,color:"#fff"}}>Operations Overview</h2>
-            <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>CK's Bakery Franchise · Live metrics for {new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</p>
-          </div>
-          <div style={{padding:"6px 14px",borderRadius:8,background:"rgba(34,211,160,.1)",border:"1px solid rgba(34,211,160,.2)",fontSize:12,fontWeight:700,color:"var(--green)",letterSpacing:"0.05em"}}>● LIVE</div>
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:22}}>
+      <div className="fade-up" style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+        <div>
+          <h2 className="syne" style={{fontSize:22,fontWeight:800}}>Operations Overview</h2>
+          <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
         </div>
+        <span className="tag tag-green">● Live</span>
       </div>
-
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))",gap:14}}>
-        <MetricCard label="Today's Sales"    value={INR(td.sales)}    sub="Today"  icon={IC.trend}  accent="green"  idx={0}/>
-        <MetricCard label="Today's Expenses" value={INR(td.expenses)} sub="Today"  icon={IC.warn}   accent="red"    idx={1}/>
-        <MetricCard label="Cash in Hand"     value={INR(today?.cashPosition?.cashInHand)} sub="EOD" icon={IC.rupee} accent="blue"   idx={2}/>
-        <MetricCard label="7-Day Wastage"    value={PCT(wastePct)}    sub="7 days" icon={IC.trash}  accent="amber"  idx={3}/>
-        <MetricCard label="7-Day Net Profit" value={INR(w7.profit)}   sub="7 days" icon={IC.spark}  accent="purple" idx={4}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:14}}>
+        <KCard label="Today's Sales"    value={INR(td.sales)}    sub="Today"  icon={I.trend}  col="green"  idx={0}/>
+        <KCard label="Today's Expenses" value={INR(td.expenses)} sub="Today"  icon={I.warn}   col="red"    idx={1}/>
+        <KCard label="Cash in Hand"     value={INR(today?.cashPosition?.cashInHand)} sub="EOD" icon={I.rupee} col="blue" idx={2}/>
+        <KCard label="7-Day Wastage"    value={PCT(wPct)}        sub="7 days" icon={I.trash}  col="amber"  idx={3}/>
+        <KCard label="7-Day Net Profit" value={INR(w7.profit)}   sub="7 days" icon={I.spark}  col={w7.profit>=0?"green":"red"} idx={4}/>
       </div>
-
-      <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:16}}>
-        <div className="fade-up card-glow" style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:18,padding:"22px 24px",animationDelay:"120ms"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-            <div>
-              <h3 style={{fontSize:15,fontWeight:700,color:"#fff"}}>14-Day Sales & Expenses</h3>
-              <p style={{fontSize:12,color:"var(--muted)",marginTop:3}}>Hover bars for details</p>
-            </div>
+      {/* Chart + breakdown */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 320px",gap:16}}>
+        <div className="card" style={{padding:"20px 22px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+            <div><p style={{fontSize:14,fontWeight:700}}>14-Day Sales & Expenses</p><p style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Click a bar to view day report</p></div>
             <div style={{display:"flex",gap:14}}>
-              {[["Sales","var(--green)"],["Expenses","var(--red)"]].map(([l,c])=>(
-                <span key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"var(--muted)"}}>
-                  <span style={{width:10,height:3,borderRadius:2,background:c,display:"inline-block"}}/>{l}
+              {[["Sales","green"],["Expenses","red"]].map(([l,c])=>(
+                <span key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"var(--txt2)"}}>
+                  <span style={{width:10,height:3,borderRadius:2,background:`var(--${c})`,display:"inline-block"}}/>{l}
                 </span>
               ))}
             </div>
           </div>
-          <div style={{display:"flex",alignItems:"flex-end",gap:6,height:150,position:"relative"}}>
-            {[0,25,50,75,100].map(p=>(
-              <div key={p} style={{position:"absolute",left:0,right:0,bottom:`${p}%`,borderTop:"1px solid rgba(255,255,255,.04)",pointerEvents:"none"}}/>
-            ))}
+          <div style={{display:"flex",alignItems:"flex-end",gap:5,height:140}}>
             {entries.slice(-14).map((entry,i)=>{
-              const t=totals(entry);
-              const sh=(t.sales/max14)*100, eh=(t.expenses/max14)*100;
-              return (
-                <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,height:"100%",position:"relative"}} className="chart-col">
-                  <div style={{flex:1,display:"flex",alignItems:"flex-end",gap:1.5,width:"100%",position:"relative"}}>
-                    <div style={{position:"absolute",bottom:"calc(100% + 8px)",left:"50%",transform:"translateX(-50%)",background:"#1a2744",border:"1px solid var(--border2)",borderRadius:8,padding:"7px 10px",fontSize:11,whiteSpace:"nowrap",pointerEvents:"none",opacity:0,transition:"opacity .15s",zIndex:10}} className="chart-tip">
-                      <div style={{color:"#94a3b8",marginBottom:3}}>{entry.date}</div>
-                      <div style={{color:"var(--green)"}}>Sales: {INR(t.sales)}</div>
-                      <div style={{color:"var(--red)"}}>Exp: {INR(t.expenses)}</div>
-                    </div>
-                    <div style={{flex:1,height:`${sh}%`,background:"linear-gradient(to top,#22d3a0,#4f9cf9)",borderRadius:"4px 4px 2px 2px",minHeight:3,transition:"height .3s ease"}}/>
-                    <div style={{flex:1,height:`${eh}%`,background:"linear-gradient(to top,#f4657a,#f9a94f)",borderRadius:"4px 4px 2px 2px",minHeight:3,transition:"height .3s ease"}}/>
+              const t=totals(entry),sh=(t.sales/max14)*100,eh=(t.expenses/max14)*100;
+              return(
+                <div key={i} onClick={()=>onViewDate(entry)} title={`${entry.date} — click to view`}
+                  style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,height:"100%",cursor:"pointer"}}
+                  onMouseEnter={e=>e.currentTarget.style.opacity=".8"}
+                  onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+                  <div style={{flex:1,display:"flex",alignItems:"flex-end",gap:2,width:"100%"}}>
+                    <div style={{flex:1,height:`${sh}%`,background:"var(--green)",borderRadius:"3px 3px 1px 1px",minHeight:2,opacity:.85}}/>
+                    <div style={{flex:1,height:`${eh}%`,background:"var(--red)",borderRadius:"3px 3px 1px 1px",minHeight:2,opacity:.75}}/>
                   </div>
-                  <span style={{fontSize:8,color:"var(--muted)",lineHeight:1}}>{DAY_NAMES[new Date(entry.date+"T00:00:00").getDay()][0]}</span>
+                  <span style={{fontSize:8,color:"var(--muted)"}}>{DN[new Date(entry.date+"T00:00:00").getDay()][0]}</span>
                 </div>
               );
             })}
           </div>
         </div>
-
-        <div className="fade-up" style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:18,padding:"22px 24px",animationDelay:"180ms"}}>
-          <h3 style={{fontSize:15,fontWeight:700,color:"#fff",marginBottom:18}}>Today's Sales Breakdown</h3>
-          {today && [
-            ["Cash Sales",     today.sales?.cash,   "var(--green)"],
-            ["Card / UPI",     today.sales?.card,   "var(--blue)"],
-            ["Swiggy / Zomato",today.sales?.swiggy, "var(--amber)"],
-          ].map(([label,val,col])=>{
-            const pct = td.sales>0?(val/td.sales)*100:0;
-            return (
-              <div key={label} style={{marginBottom:16}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,fontSize:12}}>
-                  <span style={{color:"var(--muted)"}}>{label}</span>
-                  <span style={{color:"#fff",fontWeight:700}}>{INR(val)}</span>
+        <div className="card" style={{padding:"20px 22px"}}>
+          <p style={{fontSize:14,fontWeight:700,marginBottom:16}}>Today's Sales Mix</p>
+          {today&&[["Cash",today.sales?.cash,"green"],["Card / UPI",today.sales?.card,"blue"],["Swiggy / Zomato",today.sales?.swiggy,"amber"]].map(([label,val,col])=>{
+            const pct=td.sales>0?((val||0)/td.sales)*100:0;
+            return(
+              <div key={label} style={{marginBottom:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:12}}>
+                  <span style={{color:"var(--txt2)"}}>{label}</span>
+                  <span style={{fontWeight:600,color:`var(--${col})`}}>{INR(val)}</span>
                 </div>
-                <div style={{height:5,borderRadius:3,background:"rgba(255,255,255,.06)"}}>
-                  <div style={{height:"100%",borderRadius:3,width:`${pct}%`,background:col,transition:"width .6s ease",boxShadow:`0 0 8px ${col}`}}/>
+                <div style={{height:5,borderRadius:3,background:"var(--bg2)"}}>
+                  <div style={{height:"100%",borderRadius:3,width:`${pct}%`,background:`var(--${col})`}}/>
                 </div>
-                <p style={{fontSize:10,color:"var(--muted)",marginTop:4,textAlign:"right"}}>{pct.toFixed(1)}%</p>
               </div>
             );
           })}
-          <div style={{marginTop:20,paddingTop:16,borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:12,color:"var(--muted)"}}>Total Gross</span>
-            <span style={{fontSize:18,fontWeight:800,color:"#fff",fontFamily:"'Syne',sans-serif"}}>{INR(td.sales)}</span>
+          <div style={{marginTop:16,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between"}}>
+            <span style={{fontSize:12,color:"var(--txt2)"}}>Total Gross</span>
+            <span className="syne" style={{fontSize:18,fontWeight:800,color:"var(--green)"}}>{INR(td.sales)}</span>
           </div>
         </div>
       </div>
-
-      <div className="fade-up" style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:18,overflow:"hidden",animationDelay:"240ms"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 24px",borderBottom:"1px solid var(--border)"}}>
-          <h3 style={{fontSize:15,fontWeight:700,color:"#fff"}}>Recent 7 Days</h3>
-          <span style={{fontSize:11,color:"var(--muted)",textTransform:"uppercase",letterSpacing:"0.07em"}}>All amounts in ₹</span>
-        </div>
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-            <thead>
-              <tr style={{background:"rgba(255,255,255,.02)"}}>
-                {["Date","Day","Gross Sales","Expenses","Wastage","Net Profit","Cash In Hand"].map(h=>(
-                  <th key={h} style={{padding:"10px 18px",textAlign:"left",fontSize:10,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:"0.08em",whiteSpace:"nowrap"}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {entries.slice(-7).reverse().map((e,i)=>{
-                const t=totals(e);
-                const day=new Date(e.date+"T00:00:00").toLocaleDateString("en-IN",{weekday:"short"});
-                return (
-                  <tr key={e.id||i} style={{borderTop:"1px solid var(--border)",transition:"background .15s",cursor:"default"}}
-                    onMouseEnter={ev=>ev.currentTarget.style.background="rgba(255,255,255,.02)"}
-                    onMouseLeave={ev=>ev.currentTarget.style.background="transparent"}>
-                    <td style={{padding:"12px 18px",fontWeight:600,color:"#fff",whiteSpace:"nowrap"}}>{e.date}</td>
-                    <td style={{padding:"12px 18px",color:"var(--muted)"}}>{day}</td>
-                    <td style={{padding:"12px 18px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
-                    <td style={{padding:"12px 18px",color:"var(--red)"}}>{INR(t.expenses)}</td>
-                    <td style={{padding:"12px 18px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
-                    <td style={{padding:"12px 18px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
-                    <td style={{padding:"12px 18px",color:"var(--blue)"}}>{INR(e.cashPosition?.cashInHand)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── DAILY ENTRY ──────────────────────────────────────────────
-function DailyEntry({ entries, reloadEntries, user }) {
-  const canEdit = user.role === "manager";
-  const [date,    setDate]    = useState(todayStr());
-  const [sales,   setSales]   = useState({cash:"",card:"",swiggy:""});
-  const [exps,    setExps]    = useState([{item:"",amount:"",category:"Raw Materials"}]);
-  const [pos,     setPos]     = useState([{vendor:"",invoice:"",paid:"",pending:""}]);
-  const [opening, setOpening] = useState("");
-  const [closing, setClosing] = useState("");
-  const [waste,   setWaste]   = useState([{item:"",quantity:"",cost:""}]);
-  const [cash,    setCash]    = useState({cashInHand:"",cashInBank:""});
-  const [saved,   setSaved]   = useState(false);
-  const [saving,  setSaving]  = useState(false);
-  const [errs,    setErrs]    = useState({});
-
-  // Auto-load existing entry when date changes
-  useEffect(()=>{
-    const existing = entries.find(e=>e.date===date);
-    if (existing) {
-      setSales(existing.sales || {cash:"",card:"",swiggy:""});
-      setExps(existing.expenses?.length ? existing.expenses : [{item:"",amount:"",category:"Raw Materials"}]);
-      setPos(existing.purchaseOrders?.length ? existing.purchaseOrders : [{vendor:"",invoice:"",paid:"",pending:""}]);
-      setOpening(existing.openingStock ?? "");
-      setClosing(existing.closingStock ?? "");
-      setWaste(existing.wastage?.length ? existing.wastage : [{item:"",quantity:"",cost:""}]);
-      setCash(existing.cashPosition || {cashInHand:"",cashInBank:""});
-    } else {
-      setSales({cash:"",card:"",swiggy:""});
-      setExps([{item:"",amount:"",category:"Raw Materials"}]);
-      setPos([{vendor:"",invoice:"",paid:"",pending:""}]);
-      setOpening(""); setClosing("");
-      setWaste([{item:"",quantity:"",cost:""}]);
-      setCash({cashInHand:"",cashInBank:""});
-    }
-    setSaved(false); setErrs({});
-  },[date, entries]);
-
-  const upd = (setter,i,k,v) => setter(p=>p.map((r,idx)=>idx===i?{...r,[k]:v}:r));
-  const add = setter => setter(p=>[...p,{}]);
-  const del = (setter,i) => setter(p=>p.filter((_,idx)=>idx!==i));
-
-  const validate = () => {
-    const e={};
-    if(!date) e.date="Required";
-    if(+sales.cash<0||+sales.card<0||+sales.swiggy<0) e.sales="Cannot be negative";
-    exps.forEach((x,i)=>{ if(x.item&&+x.amount<0) e[`exp${i}`]="Cannot be negative"; });
-    setErrs(e); return !Object.keys(e).length;
-  };
-
-  const save = async () => {
-    if(!validate()) return;
-    setSaving(true);
-    const entry = {
-      id: date,  // use date as document ID → easy lookup
-      date,
-      sales:{ cash:+sales.cash||0, card:+sales.card||0, swiggy:+sales.swiggy||0 },
-      expenses: exps.filter(x=>x.item).map(x=>({...x,amount:+x.amount||0})),
-      purchaseOrders: pos.filter(p=>p.vendor).map(p=>({...p,paid:+p.paid||0,pending:+p.pending||0})),
-      openingStock:+opening||0, closingStock:+closing||0,
-      wastage: waste.filter(w=>w.item).map(w=>({...w,quantity:+w.quantity||0,cost:+w.cost||0})),
-      cashPosition:{ cashInHand:+cash.cashInHand||0, cashInBank:+cash.cashInBank||0 },
-      updatedAt: new Date().toISOString(),
-      updatedBy: user.email,
-    };
-    try {
-      const { doc, setDoc } = FB();
-      await setDoc(doc(getDB(), "entries", date), entry);
-      await reloadEntries();
-      setSaved(true); setTimeout(()=>setSaved(false),3500);
-    } catch(ex) {
-      alert("Save failed: " + ex.message);
-    }
-    setSaving(false);
-  };
-
-  const totalSales = (+sales.cash||0)+(+sales.card||0)+(+sales.swiggy||0);
-  const totalExp   = exps.reduce((s,x)=>s+(+x.amount||0),0);
-
-  return (
-    <div style={{maxWidth:820,display:"flex",flexDirection:"column",gap:20}}>
-      <div className="fade-up">
-        <h2 className="syne" style={{fontSize:22,fontWeight:800,color:"#fff"}}>Daily Entry</h2>
-        <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>Record today's operations data for CK's Bakery</p>
-      </div>
-
-      {!canEdit && <ReadOnlyBanner/>}
-
-      {saved && (
-        <div className="fade-up" style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",borderRadius:10,background:"rgba(34,211,160,.1)",border:"1px solid rgba(34,211,160,.25)",color:"var(--green)",fontSize:13}}>
-          <Ico d={IC.check} s={16}/> Entry for <strong>{date}</strong> saved to Firebase!
-        </div>
-      )}
-
-      <Section title="📅 Date" accent="blue">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-          <Field label="Entry Date" error={errs.date}>
-            <input className="ifield" type="date" value={date} onChange={e=>setDate(e.target.value)} max={todayStr()} disabled={!canEdit}/>
-          </Field>
-          <div style={{display:"flex",alignItems:"flex-end",paddingBottom:2}}>
-            <div style={{padding:"12px 16px",borderRadius:10,background:"rgba(34,211,160,.06)",border:"1px solid rgba(34,211,160,.15)",width:"100%"}}>
-              <p style={{fontSize:11,color:"var(--muted)",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.07em"}}>Gross Sales Preview</p>
-              <p className="syne" style={{fontSize:22,fontWeight:800,color:"var(--green)"}}>{INR(totalSales)}</p>
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      <Section title="💰 Daily Gross Sales" accent="green">
-        {errs.sales&&<p style={{fontSize:12,color:"var(--red)",marginBottom:10}}>{errs.sales}</p>}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-          {[["Cash Sales (₹)","cash"],["Card / UPI (₹)","card"],["Swiggy / Zomato (₹)","swiggy"]].map(([l,k])=>(
-            <Field key={k} label={l}>
-              <input className="ifield" type="number" min="0" placeholder="0" value={sales[k]||""} onChange={e=>setSales(p=>({...p,[k]:e.target.value}))} disabled={!canEdit}/>
-            </Field>
-          ))}
-        </div>
-        {totalSales>0&&<div style={{marginTop:12,fontSize:12,color:"var(--green)"}}>Total: <strong>{INR(totalSales)}</strong></div>}
-      </Section>
-
-      <Section title="🧾 Expenses" accent="red">
-        {exps.map((x,i)=>(
-          <div key={i} style={{display:"grid",gridTemplateColumns:"3fr 2fr 2fr auto",gap:10,marginBottom:10,alignItems:"end"}}>
-            <Field label={i===0?"Item Name":""}>
-              <input className="ifield" placeholder="e.g. Flour" value={x.item||""} onChange={e=>upd(setExps,i,"item",e.target.value)} disabled={!canEdit}/>
-            </Field>
-            <Field label={i===0?"Amount (₹)":""} error={errs[`exp${i}`]}>
-              <input className="ifield" type="number" min="0" placeholder="0" value={x.amount||""} onChange={e=>upd(setExps,i,"amount",e.target.value)} disabled={!canEdit}/>
-            </Field>
-            <Field label={i===0?"Category":""}>
-              <select className="ifield" value={x.category||"Raw Materials"} onChange={e=>upd(setExps,i,"category",e.target.value)} disabled={!canEdit}>
-                {["Raw Materials","Utilities","Salary","Miscellaneous"].map(c=><option key={c}>{c}</option>)}
-              </select>
-            </Field>
-            <div style={{paddingBottom:2}}>
-              {canEdit&&exps.length>1&&<button onClick={()=>del(setExps,i)} style={{padding:"8px",background:"rgba(244,101,122,.1)",border:"1px solid rgba(244,101,122,.2)",borderRadius:8,cursor:"pointer",color:"var(--red)",display:"flex",alignItems:"center"}}><Ico d={IC.trash} s={14}/></button>}
-            </div>
-          </div>
-        ))}
-        {canEdit&&<button onClick={()=>add(setExps)} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:600,color:"var(--amber)",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}><Ico d={IC.plus} s={13}/>Add Row</button>}
-        {totalExp>0&&<div style={{marginTop:8,fontSize:12,color:"var(--red)"}}>Total: <strong>{INR(totalExp)}</strong></div>}
-      </Section>
-
-      <Section title="📦 Purchase Orders" accent="purple">
-        {pos.map((p,i)=>(
-          <div key={i} style={{display:"grid",gridTemplateColumns:"2.5fr 2fr 1.5fr 1.5fr auto",gap:10,marginBottom:10,alignItems:"end"}}>
-            <Field label={i===0?"Vendor":""}><input className="ifield" placeholder="Vendor name" value={p.vendor||""} onChange={e=>upd(setPos,i,"vendor",e.target.value)} disabled={!canEdit}/></Field>
-            <Field label={i===0?"Invoice No.":""}><input className="ifield" placeholder="INV-001" value={p.invoice||""} onChange={e=>upd(setPos,i,"invoice",e.target.value)} disabled={!canEdit}/></Field>
-            <Field label={i===0?"Paid (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={p.paid||""} onChange={e=>upd(setPos,i,"paid",e.target.value)} disabled={!canEdit}/></Field>
-            <Field label={i===0?"Pending (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={p.pending||""} onChange={e=>upd(setPos,i,"pending",e.target.value)} disabled={!canEdit}/></Field>
-            <div style={{paddingBottom:2}}>
-              {canEdit&&pos.length>1&&<button onClick={()=>del(setPos,i)} style={{padding:"8px",background:"rgba(244,101,122,.1)",border:"1px solid rgba(244,101,122,.2)",borderRadius:8,cursor:"pointer",color:"var(--red)",display:"flex",alignItems:"center"}}><Ico d={IC.trash} s={14}/></button>}
-            </div>
-          </div>
-        ))}
-        {canEdit&&<button onClick={()=>add(setPos)} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:600,color:"var(--amber)",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}><Ico d={IC.plus} s={13}/>Add PO</button>}
-      </Section>
-
-      <Section title="📊 Opening & Closing Stock" accent="amber">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-          <Field label="Opening Stock Value (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={opening} onChange={e=>setOpening(e.target.value)} disabled={!canEdit}/></Field>
-          <Field label="Closing Stock Value (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={closing} onChange={e=>setClosing(e.target.value)} disabled={!canEdit}/></Field>
-        </div>
-        {opening&&closing&&(
-          <div style={{marginTop:10,fontSize:12,color:(+closing-(+opening))>=0?"var(--green)":"var(--amber)"}}>
-            Stock Movement: <strong>{INR(+closing-(+opening))}</strong> ({(+closing-(+opening))>=0?"Gain":"Loss"})
-          </div>
-        )}
-      </Section>
-
-      <Section title="⚠️ Wastage Details" accent="amber">
-        {waste.map((w,i)=>(
-          <div key={i} style={{display:"grid",gridTemplateColumns:"3fr 1.5fr 1.5fr auto",gap:10,marginBottom:10,alignItems:"end"}}>
-            <Field label={i===0?"Item Name":""}><input className="ifield" placeholder="e.g. Bread Loaves" value={w.item||""} onChange={e=>upd(setWaste,i,"item",e.target.value)} disabled={!canEdit}/></Field>
-            <Field label={i===0?"Qty":""}><input className="ifield" type="number" min="0" placeholder="0" value={w.quantity||""} onChange={e=>upd(setWaste,i,"quantity",e.target.value)} disabled={!canEdit}/></Field>
-            <Field label={i===0?"Cost (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={w.cost||""} onChange={e=>upd(setWaste,i,"cost",e.target.value)} disabled={!canEdit}/></Field>
-            <div style={{paddingBottom:2}}>{canEdit&&waste.length>1&&<button onClick={()=>del(setWaste,i)} style={{padding:"8px",background:"rgba(244,101,122,.1)",border:"1px solid rgba(244,101,122,.2)",borderRadius:8,cursor:"pointer",color:"var(--red)",display:"flex",alignItems:"center"}}><Ico d={IC.trash} s={14}/></button>}</div>
-          </div>
-        ))}
-        {canEdit&&<button onClick={()=>add(setWaste)} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:600,color:"var(--amber)",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}><Ico d={IC.plus} s={13}/>Add Item</button>}
-      </Section>
-
-      <Section title="💵 End-of-Day Cash Position" accent="blue">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-          <Field label="Cash in Hand (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={cash.cashInHand||""} onChange={e=>setCash(p=>({...p,cashInHand:e.target.value}))} disabled={!canEdit}/></Field>
-          <Field label="Cash in Bank / Account (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={cash.cashInBank||""} onChange={e=>setCash(p=>({...p,cashInBank:e.target.value}))} disabled={!canEdit}/></Field>
-        </div>
-      </Section>
-
-      {canEdit ? (
-        <button onClick={save} disabled={saving}
-          style={{padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(135deg,#4f9cf9,#22d3a0)",color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:15,cursor:saving?"not-allowed":"pointer",opacity:saving?.7:1,boxShadow:"0 6px 24px rgba(79,156,249,.3)",transition:"opacity .2s"}}>
-          {saving ? "Saving to Firebase…" : "Save Daily Entry"}
-        </button>
-      ) : (
-        <div style={{textAlign:"center",padding:"14px",borderRadius:12,background:"rgba(249,169,79,.06)",border:"1px solid rgba(249,169,79,.15)",color:"var(--muted)",fontSize:13}}>
-          <Ico d={IC.lock} s={14}/> Entry saving is disabled for Owner accounts
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── WEEKLY SUMMARY ───────────────────────────────────────────
-function Weekly({ entries }) {
-  const [offset,setOffset] = useState(0);
-  const weekDates = useMemo(()=>{
-    const now=new Date(); const day=now.getDay();
-    const mon=new Date(now); mon.setDate(now.getDate()-(day===0?6:day-1)+offset*7);
-    return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;});
-  },[offset]);
-
-  const wEntries = weekDates.map(d=>entries.find(e=>e.date===d)||null);
-  const wTot = wEntries.reduce((a,e)=>{if(!e)return a;const t=totals(e);return{sales:a.sales+t.sales,exp:a.exp+t.expenses,waste:a.waste+t.wastage,profit:a.profit+t.profit,po:a.po+t.po};},{sales:0,exp:0,waste:0,profit:0,po:0});
-  const wPct = wTot.sales>0?(wTot.waste/wTot.sales)*100:0;
-  const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:22}}>
-      <div className="fade-up" style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-        <div>
-          <h2 className="syne" style={{fontSize:22,fontWeight:800,color:"#fff"}}>Weekly Summary</h2>
-          <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>{weekDates[0]} → {weekDates[6]}</p>
-        </div>
-        <div style={{display:"flex",gap:8}}>
-          {[["←",()=>setOffset(p=>p-1)],["This Week",()=>setOffset(0)],["→",()=>setOffset(p=>p+1)]].map(([l,fn],i)=>(
-            <button key={i} onClick={fn} style={{padding:"8px 16px",borderRadius:9,border:i===1?"1px solid rgba(79,156,249,.4)":"1px solid var(--border2)",background:i===1?"rgba(79,156,249,.1)":"rgba(255,255,255,.04)",color:i===1?"var(--blue)":"var(--muted)",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:i===1?700:500,fontSize:12,cursor:"pointer",transition:"all .2s"}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(79,156,249,.5)";e.currentTarget.style.color="#fff";}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor=i===1?"rgba(79,156,249,.4)":"var(--border2)";e.currentTarget.style.color=i===1?"var(--blue)":"var(--muted)";}}>
-              {l}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(165px,1fr))",gap:12}}>
-        <MetricCard label="Total Sales"    value={INR(wTot.sales)}  icon={IC.trend}  accent="green"  idx={0}/>
-        <MetricCard label="Total Expenses" value={INR(wTot.exp)}    icon={IC.warn}   accent="red"    idx={1}/>
-        <MetricCard label="Total POs"      value={INR(wTot.po)}     icon={IC.box}    accent="blue"   idx={2}/>
-        <MetricCard label="Total Wastage"  value={INR(wTot.waste)}  icon={IC.trash}  accent="amber"  idx={3}/>
-        <MetricCard label="Net Profit"     value={INR(wTot.profit)} icon={IC.rupee}  accent="purple" idx={4}/>
-      </div>
-
-      <div className="fade-up" style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:18,overflow:"hidden"}}>
-        <div style={{padding:"16px 24px",borderBottom:"1px solid var(--border)"}}>
-          <h3 style={{fontSize:14,fontWeight:700,color:"#fff"}}>Daily Breakdown — Mon to Sun</h3>
+      {/* Recent table */}
+      <div className="card" style={{overflow:"hidden"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px",borderBottom:"1px solid var(--border)"}}>
+          <p style={{fontSize:14,fontWeight:700}}>Recent 7 Days</p>
+          <span style={{fontSize:11,color:"var(--muted)"}}>Click any row to view full report</span>
         </div>
         <div style={{overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-            <thead>
-              <tr style={{background:"rgba(255,255,255,.02)"}}>
-                {["Day","Date","Gross Sales","Cash","Card/UPI","Swiggy/Zomato","Expenses","PO","Wastage","Net Profit"].map(h=>(
-                  <th key={h} style={{padding:"10px 16px",textAlign:"left",fontSize:10,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:"0.07em",whiteSpace:"nowrap"}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
+            <thead><tr style={{background:"var(--bg2)"}}>
+              {["Date","Day","Gross Sales","Expenses","Wastage","Net Profit","Cash In Hand"].map(h=>(
+                <th key={h} style={{padding:"9px 16px",textAlign:"left"}}>{h}</th>
+              ))}
+            </tr></thead>
             <tbody>
-              {weekDates.map((d,i)=>{
-                const e=wEntries[i]; const t=e?totals(e):null;
-                return (
-                  <tr key={d} style={{borderTop:"1px solid var(--border)",background:!e?"rgba(255,255,255,.005)":"transparent"}}
-                    onMouseEnter={ev=>ev.currentTarget.style.background="rgba(255,255,255,.02)"}
-                    onMouseLeave={ev=>ev.currentTarget.style.background=!e?"rgba(255,255,255,.005)":"transparent"}>
-                    <td style={{padding:"11px 16px",fontWeight:700,color:i===6?"var(--amber)":"var(--blue)",fontSize:12}}>{DAYS[i]}</td>
-                    <td style={{padding:"11px 16px",color:"var(--muted)",whiteSpace:"nowrap"}}>{d}</td>
-                    {e&&t?<>
-                      <td style={{padding:"11px 16px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
-                      <td style={{padding:"11px 16px",color:"#94a3b8"}}>{INR(e.sales?.cash)}</td>
-                      <td style={{padding:"11px 16px",color:"#94a3b8"}}>{INR(e.sales?.card)}</td>
-                      <td style={{padding:"11px 16px",color:"#94a3b8"}}>{INR(e.sales?.swiggy)}</td>
-                      <td style={{padding:"11px 16px",color:"var(--red)"}}>{INR(t.expenses)}</td>
-                      <td style={{padding:"11px 16px",color:"var(--purple)"}}>{INR(t.po)}</td>
-                      <td style={{padding:"11px 16px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
-                      <td style={{padding:"11px 16px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
-                    </>:<td colSpan={8} style={{padding:"11px 16px",color:"rgba(100,116,139,.4)",fontStyle:"italic"}}>No entry recorded</td>}
+              {entries.slice(-7).reverse().map((e,i)=>{
+                const t=totals(e),day=new Date(e.date+"T00:00:00").toLocaleDateString("en-IN",{weekday:"short"});
+                return(
+                  <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)",cursor:"pointer"}} onClick={()=>onViewDate(e)}>
+                    <td style={{padding:"11px 16px",fontWeight:600}}>{e.date}</td>
+                    <td style={{padding:"11px 16px",color:"var(--muted)"}}>{day}</td>
+                    <td style={{padding:"11px 16px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
+                    <td style={{padding:"11px 16px",color:"var(--red)"}}>{INR(t.expenses)}</td>
+                    <td style={{padding:"11px 16px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
+                    <td style={{padding:"11px 16px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
+                    <td style={{padding:"11px 16px",color:"var(--blue)"}}>{INR(e.cashPosition?.cashInHand)}</td>
                   </tr>
                 );
               })}
             </tbody>
-            <tfoot>
-              <tr style={{borderTop:"2px solid rgba(79,156,249,.2)",background:"rgba(79,156,249,.04)"}}>
-                <td colSpan={2} style={{padding:"12px 16px",fontWeight:800,color:"var(--blue)",fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em"}}>Week Total</td>
-                <td style={{padding:"12px 16px",fontWeight:800,color:"var(--green)"}}>{INR(wTot.sales)}</td>
-                <td colSpan={3}/>
-                <td style={{padding:"12px 16px",fontWeight:800,color:"var(--red)"}}>{INR(wTot.exp)}</td>
-                <td style={{padding:"12px 16px",fontWeight:800,color:"var(--purple)"}}>{INR(wTot.po)}</td>
-                <td style={{padding:"12px 16px",fontWeight:800,color:"var(--amber)"}}>{INR(wTot.waste)} <span style={{fontSize:10,opacity:.7}}>({PCT(wPct)})</span></td>
-                <td style={{padding:"12px 16px",fontWeight:800,color:wTot.profit>=0?"var(--green)":"var(--red)"}}>{INR(wTot.profit)}</td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       </div>
@@ -799,274 +612,605 @@ function Weekly({ entries }) {
   );
 }
 
-// ─── MONTHLY REPORT ───────────────────────────────────────────
-function Monthly({ entries }) {
-  const now = new Date();
-  const [yr,setYr] = useState(now.getFullYear());
-  const [mo,setMo] = useState(now.getMonth());
+/* ── ENTRY FORM (new + edit) ─────────────────── */
+function EntryForm({entries,reloadEntries,user,prefill=null,onDone=null}){
+  const canEdit=user.role==="manager";
+  const isEdit=!!prefill;
+  const init=(e)=>({
+    date:e?.date??todayStr(),
+    sales:e?.sales??{cash:"",card:"",swiggy:""},
+    exps:e?.expenses?.length?e.expenses.map(x=>({...x})):[{item:"",amount:"",category:"Raw Materials",remark:""}],
+    pos:e?.purchaseOrders?.length?e.purchaseOrders.map(p=>({...p})):[{vendor:"",invoice:"",paid:"",pending:""}],
+    opening:e?.openingStock??"",
+    closing:e?.closingStock??"",
+    waste:e?.wastage?.length?e.wastage.map(w=>({...w})):[{item:"",quantity:"",cost:""}],
+    cash:e?.cashPosition??{cashInHand:"",cashInBank:""},
+  });
+  const [f,setF]=useState(init(prefill));
+  const [saved,setSaved]=useState(false);
+  const [saving,setSaving]=useState(false);
+  const [errs,setErrs]=useState({});
 
-  const days = new Date(yr,mo+1,0).getDate();
-  const mEntries = useMemo(()=>Array.from({length:days},(_,i)=>{
+  // For new entry: auto-load existing when date changes
+  useEffect(()=>{
+    if(isEdit)return;
+    const ex=entries.find(e=>e.date===f.date);
+    if(ex)setF(init(ex));
+    else setF(p=>({...init(null),date:p.date}));
+    setSaved(false);setErrs({});
+  },[f.date,isEdit]);
+
+  const upd=(k,v)=>setF(p=>({...p,[k]:v}));
+  const updA=(k,i,fk,v)=>setF(p=>({...p,[k]:p[k].map((r,idx)=>idx===i?{...r,[fk]:v}:r)}));
+  const addA=(k,blank)=>setF(p=>({...p,[k]:[...p[k],blank]}));
+  const delA=(k,i)=>setF(p=>({...p,[k]:p[k].filter((_,idx)=>idx!==i)}));
+
+  const save=async()=>{
+    const e={};if(!f.date)e.date="Required";setErrs(e);if(Object.keys(e).length)return;
+    setSaving(true);
+    const entry={
+      id:f.date,date:f.date,
+      sales:{cash:+f.sales.cash||0,card:+f.sales.card||0,swiggy:+f.sales.swiggy||0},
+      expenses:f.exps.filter(x=>x.item).map(x=>({item:x.item,amount:+x.amount||0,category:x.category||"Raw Materials",remark:x.remark||""})),
+      purchaseOrders:f.pos.filter(p=>p.vendor).map(p=>({vendor:p.vendor,invoice:p.invoice||"",paid:+p.paid||0,pending:+p.pending||0})),
+      openingStock:+f.opening||0,closingStock:+f.closing||0,
+      wastage:f.waste.filter(w=>w.item).map(w=>({item:w.item,quantity:+w.quantity||0,cost:+w.cost||0})),
+      cashPosition:{cashInHand:+f.cash.cashInHand||0,cashInBank:+f.cash.cashInBank||0},
+      updatedAt:new Date().toISOString(),updatedBy:user.email,
+    };
+    try{
+      await FB().setDoc(FB().doc(getDB(),"entries",f.date),entry);
+      await reloadEntries();
+      if(onDone){onDone();return;}
+      setSaved(true);setTimeout(()=>setSaved(false),3500);
+    }catch(ex){alert("Save failed: "+ex.message);}
+    setSaving(false);
+  };
+
+  const totalSales=(+f.sales.cash||0)+(+f.sales.card||0)+(+f.sales.swiggy||0);
+  const totalExp=f.exps.reduce((s,x)=>s+(+x.amount||0),0);
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:18}}>
+      {!isEdit&&(
+        <div className="fade-up">
+          <h2 className="syne" style={{fontSize:22,fontWeight:800}}>Daily Entry</h2>
+          <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>Record daily operations for CK's Bakery</p>
+        </div>
+      )}
+      {!canEdit&&<OwnerBanner/>}
+      {saved&&(
+        <div style={{display:"flex",alignItems:"center",gap:9,padding:"11px 14px",borderRadius:9,background:"var(--green-bg)",border:"1px solid var(--green-border)",color:"var(--green)",fontSize:13}}>
+          <Ico d={I.check} s={15} col="var(--green)"/>Entry for <strong>{f.date}</strong> saved to Firebase!
+        </div>
+      )}
+
+      {/* Date */}
+      <Sec title="📅 Date" col="blue">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <Fld label="Entry Date" error={errs.date}>
+            <input className="ifield" type="date" value={f.date} onChange={e=>upd("date",e.target.value)} max={todayStr()} disabled={!canEdit||isEdit}/>
+          </Fld>
+          <div style={{padding:"12px 16px",borderRadius:9,background:"var(--green-bg)",border:"1px solid var(--green-border)",display:"flex",flexDirection:"column",justifyContent:"center"}}>
+            <p style={{fontSize:11,fontWeight:700,color:"var(--green)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Gross Sales Preview</p>
+            <p className="syne" style={{fontSize:22,fontWeight:800,color:"var(--green)"}}>{INR(totalSales)}</p>
+          </div>
+        </div>
+      </Sec>
+
+      {/* Sales */}
+      <Sec title="💰 Daily Gross Sales" col="green">
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
+          {[["Cash Sales (₹)","cash"],["Card / UPI (₹)","card"],["Swiggy / Zomato (₹)","swiggy"]].map(([l,k])=>(
+            <Fld key={k} label={l}><input className="ifield" type="number" min="0" placeholder="0" value={f.sales[k]||""} onChange={e=>upd("sales",{...f.sales,[k]:e.target.value})} disabled={!canEdit}/></Fld>
+          ))}
+        </div>
+        {totalSales>0&&<p style={{fontSize:12,color:"var(--green)",marginTop:10,fontWeight:600}}>Total: {INR(totalSales)}</p>}
+      </Sec>
+
+      {/* Expenses — with Remark column */}
+      <Sec title="🧾 Expenses" col="red">
+        {f.exps.map((x,i)=>(
+          <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1.5fr 1.5fr 2fr auto",gap:8,marginBottom:9,alignItems:"end"}}>
+            <Fld label={i===0?"Item Name":""}><input className="ifield" placeholder="e.g. Flour" value={x.item||""} onChange={e=>updA("exps",i,"item",e.target.value)} disabled={!canEdit}/></Fld>
+            <Fld label={i===0?"Amount (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={x.amount||""} onChange={e=>updA("exps",i,"amount",e.target.value)} disabled={!canEdit}/></Fld>
+            <Fld label={i===0?"Category":""}>
+              <select className="ifield" value={x.category||"Raw Materials"} onChange={e=>updA("exps",i,"category",e.target.value)} disabled={!canEdit}>
+                {["Raw Materials","Utilities","Salary","Miscellaneous"].map(c=><option key={c}>{c}</option>)}
+              </select>
+            </Fld>
+            <Fld label={i===0?"Remark / Note":""}><input className="ifield" placeholder="Optional note…" value={x.remark||""} onChange={e=>updA("exps",i,"remark",e.target.value)} disabled={!canEdit}/></Fld>
+            <div style={{paddingBottom:2}}>{canEdit&&f.exps.length>1&&<button onClick={()=>delA("exps",i)} className="ic-btn ic-btn-red"><Ico d={I.trash} s={13} col="var(--red)"/></button>}</div>
+          </div>
+        ))}
+        {canEdit&&<button onClick={()=>addA("exps",{item:"",amount:"",category:"Raw Materials",remark:""})} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:600,color:"var(--blue)",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}><Ico d={I.plus} s={13} col="var(--blue)"/>Add Expense Row</button>}
+        {totalExp>0&&<p style={{fontSize:12,color:"var(--red)",marginTop:8,fontWeight:600}}>Total: {INR(totalExp)}</p>}
+      </Sec>
+
+      {/* POs */}
+      <Sec title="📦 Purchase Orders" col="purple">
+        {f.pos.map((p,i)=>(
+          <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1.5fr 1fr 1fr auto",gap:8,marginBottom:9,alignItems:"end"}}>
+            <Fld label={i===0?"Vendor":""}><input className="ifield" placeholder="Vendor name" value={p.vendor||""} onChange={e=>updA("pos",i,"vendor",e.target.value)} disabled={!canEdit}/></Fld>
+            <Fld label={i===0?"Invoice No.":""}><input className="ifield" placeholder="INV-001" value={p.invoice||""} onChange={e=>updA("pos",i,"invoice",e.target.value)} disabled={!canEdit}/></Fld>
+            <Fld label={i===0?"Paid (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={p.paid||""} onChange={e=>updA("pos",i,"paid",e.target.value)} disabled={!canEdit}/></Fld>
+            <Fld label={i===0?"Pending (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={p.pending||""} onChange={e=>updA("pos",i,"pending",e.target.value)} disabled={!canEdit}/></Fld>
+            <div style={{paddingBottom:2}}>{canEdit&&f.pos.length>1&&<button onClick={()=>delA("pos",i)} className="ic-btn ic-btn-red"><Ico d={I.trash} s={13} col="var(--red)"/></button>}</div>
+          </div>
+        ))}
+        {canEdit&&<button onClick={()=>addA("pos",{vendor:"",invoice:"",paid:"",pending:""})} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:600,color:"var(--blue)",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}><Ico d={I.plus} s={13} col="var(--blue)"/>Add PO</button>}
+      </Sec>
+
+      {/* Stock */}
+      <Sec title="📊 Opening & Closing Stock" col="amber">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <Fld label="Opening Stock Value (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={f.opening} onChange={e=>upd("opening",e.target.value)} disabled={!canEdit}/></Fld>
+          <Fld label="Closing Stock Value (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={f.closing} onChange={e=>upd("closing",e.target.value)} disabled={!canEdit}/></Fld>
+        </div>
+        {f.opening&&f.closing&&(
+          <p style={{fontSize:12,marginTop:8,fontWeight:600,color:(+f.closing-(+f.opening))>=0?"var(--green)":"var(--amber)"}}>
+            Stock Movement: {INR(+f.closing-(+f.opening))} ({(+f.closing-(+f.opening))>=0?"Gain":"Loss"})
+          </p>
+        )}
+      </Sec>
+
+      {/* Wastage */}
+      <Sec title="⚠️ Wastage Details" col="amber">
+        {f.waste.map((w,i)=>(
+          <div key={i} style={{display:"grid",gridTemplateColumns:"3fr 1fr 1fr auto",gap:8,marginBottom:9,alignItems:"end"}}>
+            <Fld label={i===0?"Item Name":""}><input className="ifield" placeholder="e.g. Bread Loaves" value={w.item||""} onChange={e=>updA("waste",i,"item",e.target.value)} disabled={!canEdit}/></Fld>
+            <Fld label={i===0?"Qty":""}><input className="ifield" type="number" min="0" placeholder="0" value={w.quantity||""} onChange={e=>updA("waste",i,"quantity",e.target.value)} disabled={!canEdit}/></Fld>
+            <Fld label={i===0?"Cost (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={w.cost||""} onChange={e=>updA("waste",i,"cost",e.target.value)} disabled={!canEdit}/></Fld>
+            <div style={{paddingBottom:2}}>{canEdit&&f.waste.length>1&&<button onClick={()=>delA("waste",i)} className="ic-btn ic-btn-red"><Ico d={I.trash} s={13} col="var(--red)"/></button>}</div>
+          </div>
+        ))}
+        {canEdit&&<button onClick={()=>addA("waste",{item:"",quantity:"",cost:""})} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:600,color:"var(--blue)",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}><Ico d={I.plus} s={13} col="var(--blue)"/>Add Wastage Item</button>}
+      </Sec>
+
+      {/* Cash */}
+      <Sec title="💵 End-of-Day Cash Position" col="blue">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <Fld label="Cash in Hand (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={f.cash.cashInHand||""} onChange={e=>upd("cash",{...f.cash,cashInHand:e.target.value})} disabled={!canEdit}/></Fld>
+          <Fld label="Cash in Bank / Account (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={f.cash.cashInBank||""} onChange={e=>upd("cash",{...f.cash,cashInBank:e.target.value})} disabled={!canEdit}/></Fld>
+        </div>
+      </Sec>
+
+      {canEdit?(
+        <div style={{display:"flex",gap:10}}>
+          {onDone&&<button className="btn btn-ghost" onClick={onDone}>Cancel</button>}
+          <button className="btn btn-primary" onClick={save} disabled={saving} style={{flex:1,justifyContent:"center",padding:"12px 0",fontSize:14}}>
+            {saving?(isEdit?"Updating…":"Saving…"):(isEdit?"Update Entry":"Save Daily Entry")}
+          </button>
+        </div>
+      ):(
+        <div style={{textAlign:"center",padding:"13px",borderRadius:9,background:"var(--amber-bg)",border:"1px solid var(--amber-border)",color:"var(--amber)",fontSize:13}}>
+          <Ico d={I.lock} s={14} col="var(--amber)"/> Entry saving is disabled for Owner accounts
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── EDIT MODAL ──────────────────────────────── */
+function EditModal({entry,entries,reloadEntries,user,onClose}){
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:1000,display:"flex",alignItems:"flex-start",justifyContent:"center",background:"rgba(15,23,42,.3)",backdropFilter:"blur(3px)",overflowY:"auto",padding:"32px 16px"}}>
+      <div className="modal-in card" style={{width:"100%",maxWidth:860,boxShadow:"var(--shadow-lg)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 22px",borderBottom:"1px solid var(--border)",background:"var(--blue-bg)"}}>
+          <div>
+            <h2 className="syne" style={{fontSize:19,fontWeight:800}}>Edit Entry</h2>
+            <p style={{color:"var(--txt2)",fontSize:13,marginTop:2}}>Editing <strong>{entry.date}</strong></p>
+          </div>
+          <button className="ic-btn" onClick={onClose}><Ico d={I.close} s={15}/></button>
+        </div>
+        <div style={{padding:"22px"}}>
+          <EntryForm entries={entries} reloadEntries={reloadEntries} user={user} prefill={entry} onDone={onClose}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── ALL ENTRIES ─────────────────────────────── */
+function AllEntries({entries,reloadEntries,user,onViewDate}){
+  const isMgr=user.role==="manager";
+  const [editE,setEditE]=useState(null);
+  const [delE,setDelE]=useState(null);
+  const [deleting,setDeleting]=useState(false);
+  const [search,setSearch]=useState("");
+  const [sortDir,setSortDir]=useState("desc");
+
+  const filtered=useMemo(()=>{
+    let list=[...entries];
+    if(search)list=list.filter(e=>e.date.includes(search)||e.expenses?.some(x=>x.item?.toLowerCase().includes(search.toLowerCase())));
+    list.sort((a,b)=>sortDir==="desc"?b.date.localeCompare(a.date):a.date.localeCompare(b.date));
+    return list;
+  },[entries,search,sortDir]);
+
+  const doDelete=async()=>{
+    if(!delE)return;setDeleting(true);
+    try{await FB().deleteDoc(FB().doc(getDB(),"entries",delE.date));await reloadEntries();}
+    catch(ex){alert("Delete failed: "+ex.message);}
+    setDeleting(false);setDelE(null);
+  };
+
+  return(
+    <>
+      {editE&&<EditModal entry={editE} entries={entries} reloadEntries={reloadEntries} user={user} onClose={()=>setEditE(null)}/>}
+      {delE&&<Confirm title="Delete Entry" msg={`Permanently delete the entry for ${delE.date}? This action cannot be undone.`} onOk={doDelete} onCancel={()=>setDelE(null)}/>}
+      <div style={{display:"flex",flexDirection:"column",gap:18}}>
+        <div className="fade-up" style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+          <div>
+            <h2 className="syne" style={{fontSize:22,fontWeight:800}}>All Entries</h2>
+            <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>{entries.length} total records · click any row to view full report</p>
+          </div>
+          {!isMgr&&<span className="tag tag-amber"><Ico d={I.lock} s={11} col="var(--amber)"/>View-only</span>}
+        </div>
+        <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+          <input className="ifield" placeholder="Search by date (e.g. 2026-05) or item name…" value={search} onChange={e=>setSearch(e.target.value)} style={{maxWidth:340}}/>
+          <button className="btn btn-ghost btn-sm" onClick={()=>setSortDir(d=>d==="desc"?"asc":"desc")}>
+            {sortDir==="desc"?"↓ Newest first":"↑ Oldest first"}
+          </button>
+          <span style={{fontSize:12,color:"var(--muted)",marginLeft:"auto"}}>{filtered.length} shown</span>
+        </div>
+        {filtered.length===0?(
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:200,gap:12,color:"var(--muted)"}}>
+            <Ico d={I.list} s={38}/><p style={{fontSize:14}}>{entries.length===0?"No entries yet.":"No matches found."}</p>
+          </div>
+        ):(
+          <div className="card" style={{overflow:"hidden"}}>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead><tr style={{background:"var(--bg2)"}}>
+                  {["Date","Day","Gross Sales","Expenses","Expense Items","Wastage","Net Profit","Cash in Hand",isMgr?"Actions":""].filter(Boolean).map(h=>(
+                    <th key={h} style={{padding:"10px 14px",textAlign:"left"}}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {filtered.map((e)=>{
+                    const t=totals(e),isSun=new Date(e.date+"T00:00:00").getDay()===0;
+                    // expense summary for table
+                    const expSummary=(e.expenses||[]).filter(x=>x.item).slice(0,2).map(x=>`${x.item}${x.remark?" ("+x.remark+")":""}`).join(", ")+(e.expenses?.length>2?` +${e.expenses.length-2} more`:"");
+                    return(
+                      <tr key={e.date} className="tr-hover" style={{borderTop:"1px solid var(--border)",cursor:"pointer"}} onClick={()=>onViewDate(e)}>
+                        <td style={{padding:"10px 14px",fontWeight:700}}>{e.date}</td>
+                        <td style={{padding:"10px 14px",fontWeight:600,color:isSun?"var(--amber)":"var(--blue)",fontSize:11}}>{DN[new Date(e.date+"T00:00:00").getDay()]}</td>
+                        <td style={{padding:"10px 14px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
+                        <td style={{padding:"10px 14px",color:"var(--red)"}}>{INR(t.expenses)}</td>
+                        <td style={{padding:"10px 14px",color:"var(--txt2)",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:11}}>{expSummary||"—"}</td>
+                        <td style={{padding:"10px 14px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
+                        <td style={{padding:"10px 14px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
+                        <td style={{padding:"10px 14px",color:"var(--blue)"}}>{INR(e.cashPosition?.cashInHand)}</td>
+                        {isMgr&&(
+                          <td style={{padding:"8px 14px"}} onClick={ev=>ev.stopPropagation()}>
+                            <div style={{display:"flex",gap:6}}>
+                              <button className="ic-btn ic-btn-blue" title="Edit" onClick={()=>setEditE(e)}><Ico d={I.edit} s={13} col="var(--blue)"/></button>
+                              <button className="ic-btn ic-btn-red" title="Delete" onClick={()=>setDelE(e)}><Ico d={I.trash} s={13} col="var(--red)"/></button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ── MONTHLY REPORT ──────────────────────────── */
+function Monthly({entries,onViewDate,user}){
+  const now=new Date();
+  const [yr,setYr]=useState(now.getFullYear());
+  const [mo,setMo]=useState(now.getMonth());
+  const [pdfBusy,setPdfBusy]=useState(false);
+  const isMgr=user.role==="manager";
+  const [editE,setEditE]=useState(null);
+
+  const days=new Date(yr,mo+1,0).getDate();
+  const mEntries=useMemo(()=>Array.from({length:days},(_,i)=>{
     const ds=`${yr}-${pad(mo+1)}-${pad(i+1)}`;
     return entries.find(e=>e.date===ds)||null;
   }),[entries,yr,mo,days]);
 
-  const mTot = useMemo(()=>mEntries.reduce((a,e)=>{
-    if(!e)return a; const t=totals(e);
+  const mTot=useMemo(()=>mEntries.reduce((a,e)=>{
+    if(!e)return a;const t=totals(e);
     return{sales:a.sales+t.sales,exp:a.exp+t.expenses,waste:a.waste+t.wastage,profit:a.profit+t.profit,po:a.po+t.po,cash:a.cash+(e.cashPosition?.cashInHand||0)};
   },{sales:0,exp:0,waste:0,profit:0,po:0,cash:0}),[mEntries]);
 
-  const wPct = mTot.sales>0?(mTot.waste/mTot.sales)*100:0;
-  const prevMo = ()=>{ if(mo===0){setMo(11);setYr(y=>y-1);}else setMo(m=>m-1); };
-  const nextMo = ()=>{ if(mo===11){setMo(0);setYr(y=>y+1);}else setMo(m=>m+1); };
+  const wPct=mTot.sales>0?(mTot.waste/mTot.sales)*100:0;
+  const prevMo=()=>{if(mo===0){setMo(11);setYr(y=>y-1);}else setMo(m=>m-1);};
+  const nextMo=()=>{if(mo===11){setMo(0);setYr(y=>y+1);}else setMo(m=>m+1);};
 
-  const downloadPDF = async () => {
-    const { default: jsPDF } = await import("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js").then(()=>({default:window.jspdf.jsPDF})).catch(()=>({default:null}));
-    if(!jsPDF){ alert("jsPDF not available. In production: npm install jspdf jspdf-autotable"); return; }
-    const doc = new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
-    const W=297, H=210;
-    doc.setFillColor(8,12,20); doc.rect(0,0,W,H,"F");
-    doc.setFillColor(13,20,36); doc.rect(0,0,W,40,"F");
-    doc.setDrawColor(79,156,249); doc.setLineWidth(.3); doc.line(0,40,W,40);
-    doc.setTextColor(79,156,249); doc.setFontSize(7); doc.setFont("helvetica","bold");
-    doc.text("SKANDAN ENTERPRISE · CK'S BAKERY FRANCHISE", W/2, 10, {align:"center"});
-    doc.setTextColor(255,255,255); doc.setFontSize(16);
-    doc.text(`${MONTH_NAMES[mo].toUpperCase()} ${yr} — MONTHLY REPORT`, W/2, 22, {align:"center"});
-    doc.setTextColor(100,116,139); doc.setFontSize(7); doc.setFont("helvetica","normal");
-    doc.text(`Generated: ${new Date().toLocaleString("en-IN")}`, W/2, 30, {align:"center"});
-    const rows = mEntries.map((e,i)=>{
-      const ds=`${pad(i+1)} ${MONTH_NAMES[mo]}`; const dn=DAY_NAMES[new Date(yr,mo,i+1).getDay()];
-      if(!e) return [ds,dn,"—","—","—","—","—","—","—","—"];
-      const t=totals(e);
-      return [ds,dn,INR(t.sales),INR(e.sales?.cash),INR(e.sales?.card),INR(e.sales?.swiggy),INR(t.expenses),INR(t.po),INR(t.wastage),INR(t.profit)];
-    });
-    rows.push(["TOTAL","",INR(mTot.sales),"","","",INR(mTot.exp),INR(mTot.po),`${INR(mTot.waste)} (${PCT(wPct)})`,INR(mTot.profit)]);
-    try {
-      await import("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js").catch(()=>null);
-      doc.autoTable({
-        startY:44,
-        head:[["Date","Day","Gross Sales","Cash","Card/UPI","Swiggy/Zomato","Expenses","PO","Wastage","Net Profit"]],
-        body:rows, theme:"grid",
-        styles:{fontSize:6.5,cellPadding:2.2,textColor:[226,232,240],fillColor:[13,20,36],lineColor:[30,41,59],lineWidth:.25},
-        headStyles:{fillColor:[8,12,20],textColor:[79,156,249],fontStyle:"bold",fontSize:7},
-        alternateRowStyles:{fillColor:[17,24,39]},
-        didParseCell:d=>{if(d.row.index===rows.length-1){d.cell.styles.fillColor=[10,40,20];d.cell.styles.textColor=[34,211,160];d.cell.styles.fontStyle="bold";}},
+  const downloadPDF=async()=>{
+    setPdfBusy(true);
+    try{
+      // load jsPDF
+      if(!window.jspdf){
+        await new Promise((res,rej)=>{
+          const s=document.createElement("script");
+          s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+          s.onload=res;s.onerror=rej;document.head.appendChild(s);
+        });
+      }
+      if(!window.jspdf?.jsPDF){setPdfBusy(false);alert("jsPDF failed to load.");return;}
+      await new Promise((res,rej)=>{
+        const s=document.createElement("script");
+        s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js";
+        s.onload=res;s.onerror=rej;document.head.appendChild(s);
       });
-    } catch(e) { console.log("autoTable:",e); }
-    doc.save(`Skandan_${MONTH_NAMES[mo]}_${yr}.pdf`);
+      const {jsPDF}=window.jspdf;
+      const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
+      const W=297;
+      // Header bg
+      doc.setFillColor(239,246,255);doc.rect(0,0,W,42,"F");
+      doc.setDrawColor(37,99,235);doc.setLineWidth(.5);doc.line(0,42,W,42);
+      // Logo area
+      doc.setFillColor(37,99,235);doc.roundedRect(10,8,26,26,3,3,"F");
+      doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont("helvetica","bold");doc.text("SE",23,24,{align:"center"});
+      // Title
+      doc.setTextColor(30,41,59);doc.setFontSize(16);doc.setFont("helvetica","bold");
+      doc.text("SKANDAN ENTERPRISE",44,16);
+      doc.setFontSize(9);doc.setTextColor(100,116,139);doc.setFont("helvetica","normal");
+      doc.text("CK's Bakery Franchise · Operations Report",44,23);
+      doc.setFontSize(12);doc.setFont("helvetica","bold");doc.setTextColor(37,99,235);
+      doc.text(`${MN[mo].toUpperCase()} ${yr}`,44,31);
+      // KPIs
+      const kpis=[
+        {l:"Total Sales",v:INR(mTot.sales),c:[5,150,105]},
+        {l:"Total Expenses",v:INR(mTot.exp),c:[220,38,38]},
+        {l:"Total POs",v:INR(mTot.po),c:[37,99,235]},
+        {l:"Net Profit",v:INR(mTot.profit),c:mTot.profit>=0?[5,150,105]:[220,38,38]},
+        {l:"Wastage %",v:PCT(wPct),c:[217,119,6]},
+      ];
+      kpis.forEach((k,i)=>{
+        const x=10+i*57,y=46;
+        doc.setFillColor(248,250,252);doc.roundedRect(x,y,54,18,2,2,"F");
+        doc.setDrawColor(...k.c);doc.setLineWidth(.4);doc.line(x,y,x,y+18);
+        doc.setTextColor(...k.c);doc.setFontSize(14);doc.setFont("helvetica","bold");
+        doc.text(k.v,x+28,y+11,{align:"center"});
+        doc.setTextColor(100,116,139);doc.setFontSize(6.5);doc.setFont("helvetica","normal");
+        doc.text(k.l.toUpperCase(),x+28,y+16,{align:"center"});
+      });
+      // Table
+      const head=[["#","Date","Day","Gross Sales","Cash","Card/UPI","Swiggy","Expenses","Expense Remarks","PO","Wastage","Net Profit","Cash EOD"]];
+      const rows=mEntries.map((e,i)=>{
+        const ds=`${pad(i+1)} ${MNS[mo]}`,dn=DN[new Date(yr,mo,i+1).getDay()];
+        if(!e)return[String(i+1),ds,dn,"—","—","—","—","—","—","—","—","—","—"];
+        const t=totals(e);
+        const remarks=(e.expenses||[]).filter(x=>x.item).map(x=>x.remark?`${x.item}: ${x.remark}`:x.item).join("; ")||"—";
+        return[String(i+1),ds,dn,INR(t.sales),INR(e.sales?.cash),INR(e.sales?.card),INR(e.sales?.swiggy),INR(t.expenses),remarks,INR(t.po),INR(t.wastage),INR(t.profit),INR(e.cashPosition?.cashInHand)];
+      });
+      rows.push(["","TOTAL","",INR(mTot.sales),"","","",INR(mTot.exp),"",INR(mTot.po),`${INR(mTot.waste)} (${PCT(wPct)})`,INR(mTot.profit),"─"]);
+      doc.autoTable({
+        startY:68,head,body:rows,theme:"grid",
+        styles:{fontSize:6.2,cellPadding:1.8,textColor:[30,41,59],fillColor:[255,255,255],lineColor:[226,232,240],lineWidth:.2},
+        headStyles:{fillColor:[30,41,59],textColor:[255,255,255],fontStyle:"bold",fontSize:6.5},
+        alternateRowStyles:{fillColor:[248,250,252]},
+        columnStyles:{0:{cellWidth:6},1:{cellWidth:16},2:{cellWidth:9},8:{cellWidth:40},11:{cellWidth:18}},
+        didParseCell:d=>{
+          if(d.row.index===rows.length-1){d.cell.styles.fillColor=[239,246,255];d.cell.styles.fontStyle="bold";d.cell.styles.textColor=[5,150,105];}
+          if(d.section==="body"&&d.column.index===11&&d.row.index<rows.length-1){
+            const v=d.cell.raw;if(v&&v!=="—"){const n=Number(v.replace(/[₹,]/g,""));d.cell.styles.textColor=n>=0?[5,150,105]:[220,38,38];}
+          }
+        },
+      });
+      // Footer
+      const finalY=doc.lastAutoTable.finalY+6;
+      doc.setFontSize(7);doc.setTextColor(148,163,184);doc.setFont("helvetica","normal");
+      doc.text(`Generated: ${new Date().toLocaleString("en-IN")} · Skandan Enterprise · Confidential`,W/2,finalY,{align:"center"});
+      doc.save(`Skandan_${MN[mo]}_${yr}.pdf`);
+    }catch(ex){alert("PDF error: "+ex.message);}
+    setPdfBusy(false);
   };
 
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:22}}>
-      <div className="fade-up" style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-        <div>
-          <h2 className="syne" style={{fontSize:22,fontWeight:800,color:"#fff"}}>Monthly Report</h2>
-          <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>{MONTH_NAMES[mo]} {yr} · {days} days</p>
+  return(
+    <>
+      {editE&&<EditModal entry={editE} entries={entries} reloadEntries={()=>{}} user={user} onClose={()=>setEditE(null)}/>}
+      <div style={{display:"flex",flexDirection:"column",gap:20}}>
+        <div className="fade-up" style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+          <div>
+            <h2 className="syne" style={{fontSize:22,fontWeight:800}}>Monthly Report</h2>
+            <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>{MN[mo]} {yr} · {days} days · click any row to view day report</p>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <button className="btn btn-ghost btn-sm" onClick={prevMo}>←</button>
+            <span style={{padding:"6px 16px",borderRadius:8,border:"1.5px solid var(--border)",fontSize:13,fontWeight:700,background:"var(--card)"}}>{MNS[mo]} {yr}</span>
+            <button className="btn btn-ghost btn-sm" onClick={nextMo}>→</button>
+            <button className="btn btn-sm" onClick={downloadPDF} disabled={pdfBusy}
+              style={{background:"linear-gradient(135deg,var(--red),var(--amber))",color:"#fff",border:"none",boxShadow:"0 2px 8px rgba(220,38,38,.2)"}}>
+              <Ico d={I.pdf} s={13} col="#fff"/>
+              {pdfBusy?"Generating…":"Download PDF"}
+            </button>
+          </div>
         </div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <button onClick={prevMo} style={{padding:"8px 14px",borderRadius:9,border:"1px solid var(--border2)",background:"rgba(255,255,255,.04)",color:"var(--muted)",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,cursor:"pointer"}}>←</button>
-          <span style={{padding:"8px 18px",borderRadius:9,border:"1px solid var(--border2)",fontSize:13,fontWeight:700,color:"#fff",background:"rgba(255,255,255,.04)"}}>{MONTH_NAMES[mo]} {yr}</span>
-          <button onClick={nextMo} style={{padding:"8px 14px",borderRadius:9,border:"1px solid var(--border2)",background:"rgba(255,255,255,.04)",color:"var(--muted)",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,cursor:"pointer"}}>→</button>
-          <button onClick={downloadPDF} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 20px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#f9a94f,#f4657a)",color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",boxShadow:"0 4px 16px rgba(249,169,79,.25)"}}>
-            <Ico d={IC.pdf} s={15}/>Download PDF
-          </button>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:12}}>
+          <KCard label="Total Sales"    value={INR(mTot.sales)}  icon={I.trend}  col="green"  idx={0}/>
+          <KCard label="Total Expenses" value={INR(mTot.exp)}    icon={I.warn}   col="red"    idx={1}/>
+          <KCard label="Total POs"      value={INR(mTot.po)}     icon={I.box}    col="blue"   idx={2}/>
+          <KCard label="Cash EOD"       value={INR(mTot.cash)}   icon={I.rupee}  col="blue"   idx={3}/>
+          <KCard label="Net Profit"     value={INR(mTot.profit)} icon={I.spark}  col={mTot.profit>=0?"green":"red"} idx={4}/>
+          <KCard label="Wastage %"      value={PCT(wPct)}        icon={I.trash}  col="amber"  idx={5} sub="of sales"/>
         </div>
-      </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
-        <MetricCard label="Total Sales"    value={INR(mTot.sales)}  icon={IC.trend}  accent="green"  idx={0}/>
-        <MetricCard label="Total Expenses" value={INR(mTot.exp)}    icon={IC.warn}   accent="red"    idx={1}/>
-        <MetricCard label="Total POs"      value={INR(mTot.po)}     icon={IC.box}    accent="blue"   idx={2}/>
-        <MetricCard label="Total Cash EOD" value={INR(mTot.cash)}   icon={IC.rupee}  accent="blue"   idx={3}/>
-        <MetricCard label="Net Profit"     value={INR(mTot.profit)} icon={IC.spark}  accent={mTot.profit>=0?"green":"red"} idx={4}/>
-        <MetricCard label="Wastage %" value={PCT(wPct)} sub="of gross sales" icon={IC.trash} accent="amber" idx={5}/>
-      </div>
+        <div style={{padding:"12px 18px",borderRadius:10,background:"var(--amber-bg)",border:"1px solid var(--amber-border)"}}>
+          <p style={{fontSize:11,fontWeight:700,color:"var(--amber)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:4}}>📐 Wastage % Formula</p>
+          <p style={{fontSize:12,color:"var(--txt2)"}}>Wastage % = (Total Wastage Cost ÷ Gross Sales) × 100 &nbsp;=&nbsp; ({INR(mTot.waste)} ÷ {INR(mTot.sales)}) × 100 = <strong style={{color:"var(--amber)"}}>{PCT(wPct)}</strong></p>
+        </div>
 
-      <div className="fade-up" style={{padding:"14px 20px",borderRadius:12,background:"rgba(249,169,79,.06)",border:"1px solid rgba(249,169,79,.18)"}}>
-        <p style={{fontSize:11,fontWeight:700,color:"var(--amber)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>📐 Wastage % Formula</p>
-        <p style={{fontSize:12,color:"var(--muted)"}}>
-          Wastage % = (Total Wastage Cost ÷ Total Gross Sales) × 100
-          <span style={{marginLeft:16,color:"#fff",fontWeight:700}}>= ({INR(mTot.waste)} ÷ {INR(mTot.sales)}) × 100 = <span style={{color:"var(--amber)"}}>{PCT(wPct)}</span></span>
-        </p>
-      </div>
-
-      <div className="fade-up" style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:18,overflow:"hidden"}}>
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-            <thead>
-              <tr style={{background:"rgba(255,255,255,.03)"}}>
-                {["Day","Date","Gross Sales","Cash","Card/UPI","Swiggy/Zomato","Expenses","PO","Wastage","Net Profit"].map(h=>(
-                  <th key={h} style={{padding:"11px 14px",textAlign:"left",fontSize:9.5,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:"0.07em",whiteSpace:"nowrap"}}>{h}</th>
+        <div className="card" style={{overflow:"hidden"}}>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead><tr style={{background:"var(--bg2)"}}>
+                {["Day","Date","Gross Sales","Cash","Card/UPI","Swiggy","Expenses","Expense Items & Remarks","PO","Wastage","Net Profit","Cash EOD",isMgr?"":""].filter(Boolean).map(h=>(
+                  <th key={h} style={{padding:"10px 13px",textAlign:"left"}}>{h}</th>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {mEntries.map((e,i)=>{
-                const d=new Date(yr,mo,i+1); const dn=DAY_NAMES[d.getDay()]; const t=e?totals(e):null;
-                const isSun=d.getDay()===0;
-                return (
-                  <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,.04)",background:isSun?"rgba(249,169,79,.025)":"transparent",cursor:"default"}}
-                    onMouseEnter={ev=>ev.currentTarget.style.background="rgba(255,255,255,.025)"}
-                    onMouseLeave={ev=>ev.currentTarget.style.background=isSun?"rgba(249,169,79,.025)":"transparent"}>
-                    <td style={{padding:"10px 14px",fontSize:11,fontWeight:700,color:isSun?"var(--amber)":"var(--blue)"}}>{dn}</td>
-                    <td style={{padding:"10px 14px",color:"#94a3b8",whiteSpace:"nowrap"}}>{pad(i+1)} {MONTH_NAMES[mo]}</td>
-                    {e&&t?<>
-                      <td style={{padding:"10px 14px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
-                      <td style={{padding:"10px 14px",color:"#64748b"}}>{INR(e.sales?.cash)}</td>
-                      <td style={{padding:"10px 14px",color:"#64748b"}}>{INR(e.sales?.card)}</td>
-                      <td style={{padding:"10px 14px",color:"#64748b"}}>{INR(e.sales?.swiggy)}</td>
-                      <td style={{padding:"10px 14px",color:"var(--red)"}}>{INR(t.expenses)}</td>
-                      <td style={{padding:"10px 14px",color:"var(--purple)"}}>{INR(t.po)}</td>
-                      <td style={{padding:"10px 14px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
-                      <td style={{padding:"10px 14px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
-                    </>:<td colSpan={8} style={{padding:"10px 14px",color:"rgba(100,116,139,.35)",fontStyle:"italic",fontSize:11}}>—</td>}
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr style={{borderTop:"2px solid rgba(34,211,160,.2)",background:"rgba(34,211,160,.05)"}}>
-                <td colSpan={2} style={{padding:"13px 14px",fontWeight:800,color:"var(--green)",fontSize:10,textTransform:"uppercase",letterSpacing:"0.08em"}}>Monthly Total</td>
-                <td style={{padding:"13px 14px",fontWeight:800,color:"var(--green)"}}>{INR(mTot.sales)}</td>
+              </tr></thead>
+              <tbody>
+                {mEntries.map((e,i)=>{
+                  const d=new Date(yr,mo,i+1),dn=DN[d.getDay()],t=e?totals(e):null,isSun=d.getDay()===0;
+                  const expRemarks=e?(e.expenses||[]).filter(x=>x.item).map(x=>x.remark?`${x.item}: ${x.remark}`:x.item).join(" · ")||"—":"";
+                  return(
+                    <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)",background:isSun?"rgba(217,119,6,.04)":"transparent",cursor:e?"pointer":"default"}}
+                      onClick={()=>e&&onViewDate(e)}>
+                      <td style={{padding:"9px 13px",fontWeight:700,color:isSun?"var(--amber)":"var(--blue)",fontSize:11}}>{dn}</td>
+                      <td style={{padding:"9px 13px",color:"var(--txt2)",whiteSpace:"nowrap"}}>{pad(i+1)} {MNS[mo]}</td>
+                      {e&&t?<>
+                        <td style={{padding:"9px 13px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--txt2)"}}>{INR(e.sales?.cash)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--txt2)"}}>{INR(e.sales?.card)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--txt2)"}}>{INR(e.sales?.swiggy)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--red)",fontWeight:600}}>{INR(t.expenses)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--txt2)",maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:11}}>{expRemarks}</td>
+                        <td style={{padding:"9px 13px",color:"var(--purple)"}}>{INR(t.po)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
+                        <td style={{padding:"9px 13px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--blue)"}}>{INR(e.cashPosition?.cashInHand)}</td>
+                        {isMgr&&(
+                          <td style={{padding:"7px 13px"}} onClick={ev=>ev.stopPropagation()}>
+                            <button className="ic-btn ic-btn-blue" title="Edit" onClick={()=>setEditE(e)}><Ico d={I.edit} s={12} col="var(--blue)"/></button>
+                          </td>
+                        )}
+                      </>:<>
+                        <td colSpan={isMgr?10:9} style={{padding:"9px 13px",color:"var(--muted)",fontStyle:"italic",fontSize:11}}>— no entry —</td>
+                      </>}
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot><tr style={{borderTop:"2px solid var(--green-border)",background:"var(--green-bg)"}}>
+                <td colSpan={2} style={{padding:"11px 13px",fontWeight:800,color:"var(--green)",fontSize:11,textTransform:"uppercase",letterSpacing:".06em"}}>Monthly Total</td>
+                <td style={{padding:"11px 13px",fontWeight:800,color:"var(--green)"}}>{INR(mTot.sales)}</td>
                 <td colSpan={3}/>
-                <td style={{padding:"13px 14px",fontWeight:800,color:"var(--red)"}}>{INR(mTot.exp)}</td>
-                <td style={{padding:"13px 14px",fontWeight:800,color:"var(--purple)"}}>{INR(mTot.po)}</td>
-                <td style={{padding:"13px 14px",fontWeight:800,color:"var(--amber)"}}>{INR(mTot.waste)}<br/><span style={{fontSize:10,color:"var(--amber)",opacity:.8}}>{PCT(wPct)}</span></td>
-                <td style={{padding:"13px 14px",fontWeight:800,color:mTot.profit>=0?"var(--green)":"var(--red)"}}>{INR(mTot.profit)}</td>
-              </tr>
-            </tfoot>
-          </table>
+                <td style={{padding:"11px 13px",fontWeight:800,color:"var(--red)"}}>{INR(mTot.exp)}</td>
+                <td/>
+                <td style={{padding:"11px 13px",fontWeight:800,color:"var(--purple)"}}>{INR(mTot.po)}</td>
+                <td style={{padding:"11px 13px",fontWeight:800,color:"var(--amber)"}}>{INR(mTot.waste)} <span style={{fontSize:10,opacity:.8}}>({PCT(wPct)})</span></td>
+                <td style={{padding:"11px 13px",fontWeight:800,color:mTot.profit>=0?"var(--green)":"var(--red)"}}>{INR(mTot.profit)}</td>
+                <td>{INR(mTot.cash)}</td>
+                {isMgr&&<td/>}
+              </tr></tfoot>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
-// ─── APP SHELL ────────────────────────────────────────────────
-function App() {
-  const [authChecked, setAuthChecked] = useState(false);
-  const [user,        setUser]        = useState(null);
-  const [entries,     setEntries]     = useState([]);
-  const [loadingData, setLoadingData] = useState(false);
-  const [view,        setView]        = useState("dashboard");
-  const [mobileOpen,  setMO]          = useState(false);
+/* ── APP ─────────────────────────────────────── */
+function App(){
+  const [authOk,setAuthOk]=useState(false);
+  const [user,setUser]=useState(null);
+  const [entries,setEntries]=useState([]);
+  const [loading,setLoading]=useState(false);
+  const [view,setView]=useState("dashboard");
+  const [mob,setMob]=useState(false);
+  const [dayDetail,setDayDetail]=useState(null); // entry to show in popup
+  const [editFromDetail,setEditFromDetail]=useState(null); // edit modal from popup
 
-  // ── Firebase Auth listener ──────────────────────────────────
   useEffect(()=>{
-    // Wait for module script to initialise
-    const interval = setInterval(()=>{
-      if (!window.__auth || !window.__firebase) return;
-      clearInterval(interval);
-      const { onAuthStateChanged } = FB();
-      onAuthStateChanged(getAuth(), async (fbUser) => {
-        if (fbUser) {
-          let role = "manager";
-          let name = fbUser.displayName || fbUser.email.split("@")[0];
-          let avatar = name.slice(0,2).toUpperCase();
-          if (fbUser.email.toLowerCase().includes("owner")) role = "owner";
-          setUser({ uid:fbUser.uid, email:fbUser.email, role, name, avatar });
-        } else {
-          setUser(null);
-        }
-        setAuthChecked(true);
+    const iv=setInterval(()=>{
+      if(!window.__auth||!window.__firebase)return;
+      clearInterval(iv);
+      FB().onAuthStateChanged(getAu(),fbUser=>{
+        if(fbUser){
+          const role=fbUser.email.toLowerCase().includes("owner")?"owner":"manager";
+          const name=fbUser.displayName||fbUser.email.split("@")[0];
+          setUser({uid:fbUser.uid,email:fbUser.email,role,name,avatar:name.slice(0,2).toUpperCase()});
+        }else setUser(null);
+        setAuthOk(true);
       });
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
+    },100);
+    return()=>clearInterval(iv);
+  },[]);
 
-  // ── Load entries from Firestore ─────────────────────────────
-  const loadEntries = useCallback(async () => {
-    if (!window.__db || !window.__firebase) return;
-    setLoadingData(true);
-    try {
-      const { collection, getDocs, query, orderBy } = FB();
-      const q = query(collection(getDB(), "entries"), orderBy("date", "asc"));
-      const snap = await getDocs(q);
-      const data = snap.docs.map(d => d.data());
-      setEntries(data);
-    } catch(ex) {
-      console.error("Load entries error:", ex);
-    }
-    setLoadingData(false);
-  }, []);
+  const loadEntries=useCallback(async()=>{
+    if(!window.__db||!window.__firebase)return;
+    setLoading(true);
+    try{
+      const{collection,getDocs,query,orderBy}=FB();
+      const snap=await getDocs(query(collection(getDB(),"entries"),orderBy("date","asc")));
+      setEntries(snap.docs.map(d=>d.data()));
+    }catch(ex){console.error(ex);}
+    setLoading(false);
+  },[]);
 
-  useEffect(()=>{
-    if (user) loadEntries();
-    else setEntries([]);
-  }, [user]);
+  useEffect(()=>{if(user)loadEntries();else setEntries([]);},[user]);
 
-  const handleLogout = async () => {
-    const { signOut } = FB();
-    await signOut(getAuth());
-    setUser(null); setEntries([]);
-  };
+  const logout=async()=>{await FB().signOut(getAu());setUser(null);setEntries([]);};
 
-  if (!authChecked) return <><style>{STYLES}</style><LoadingScreen msg="Connecting to Firebase…"/></>;
-  if (!user)        return <><style>{STYLES}</style><AuthScreen onLogin={setUser}/></>;
+  const viewDate=(entry)=>setDayDetail(entry);
+  const openEditFromDetail=(entry)=>{setDayDetail(null);setEditFromDetail(entry);};
 
-  const views = {
-    dashboard: <Dashboard entries={entries}/>,
-    entry:     <DailyEntry entries={entries} reloadEntries={loadEntries} user={user}/>,
-    weekly:    <Weekly entries={entries}/>,
-    monthly:   <Monthly entries={entries}/>,
-  };
+  if(!authOk)return<><style>{STYLES}</style><Loader msg="Connecting to Firebase…"/></>;
+  if(!user)return<><style>{STYLES}</style><AuthScreen/></>;
 
-  return (
+  const vtitle={dashboard:"Operations Overview",entry:"Daily Entry",entries:"All Entries",monthly:"Monthly Report"};
+
+  return(
     <>
       <style>{STYLES}{`
-        .chart-col:hover .chart-tip{opacity:1!important;}
-        .mobile-menu-btn{display:none!important;}
+        .mobile-btn{display:none!important;}
         @media(max-width:768px){
-          .app-sidebar{display:none!important;}
-          .app-mobile-sidebar{display:flex!important;}
-          .mobile-menu-btn{display:flex!important;}
+          .app-side{display:none!important;}
+          .app-mob-side{display:flex!important;}
+          .mobile-btn{display:flex!important;}
         }
       `}</style>
-      <div style={{display:"flex",height:"100vh",overflow:"hidden",background:"var(--bg)"}}>
-        <div className="app-sidebar">
-          <Sidebar active={view} setActive={setView} user={user} onLogout={handleLogout}/>
-        </div>
 
-        {mobileOpen&&(
-          <div style={{position:"fixed",inset:0,zIndex:100,display:"flex"}} className="app-mobile-sidebar">
-            <div style={{flex:1,background:"rgba(0,0,0,.7)"}} onClick={()=>setMO(false)}/>
-            <div style={{width:230}}>
-              <Sidebar active={view} setActive={v=>{setView(v);setMO(false);}} user={user} onLogout={handleLogout}/>
-            </div>
+      {/* Day Detail Popup */}
+      {dayDetail&&<DayDetail entry={dayDetail} onClose={()=>setDayDetail(null)} onEdit={()=>openEditFromDetail(dayDetail)} isManager={user.role==="manager"}/>}
+
+      {/* Edit modal triggered from day detail */}
+      {editFromDetail&&<EditModal entry={editFromDetail} entries={entries} reloadEntries={loadEntries} user={user} onClose={()=>setEditFromDetail(null)}/>}
+
+      <div style={{display:"flex",height:"100vh",overflow:"hidden",background:"var(--bg)"}}>
+        {/* Desktop sidebar */}
+        <div className="app-side"><Sidebar active={view} setActive={setView} user={user} onLogout={logout}/></div>
+
+        {/* Mobile sidebar */}
+        {mob&&(
+          <div style={{position:"fixed",inset:0,zIndex:300,display:"flex"}} className="app-mob-side">
+            <div style={{flex:1,background:"rgba(15,23,42,.35)"}} onClick={()=>setMob(false)}/>
+            <div style={{width:220}}><Sidebar active={view} setActive={v=>{setView(v);setMob(false);}} user={user} onLogout={logout}/></div>
           </div>
         )}
 
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-          <header style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 28px",borderBottom:"1px solid var(--border)",background:"var(--surface)"}}>
-            <div style={{display:"flex",alignItems:"center",gap:14}}>
-              <button onClick={()=>setMO(true)} className="mobile-menu-btn" style={{padding:8,borderRadius:8,background:"rgba(255,255,255,.06)",border:"none",cursor:"pointer",color:"var(--muted)"}}>
-                <Ico d={IC.menu} s={18}/>
-              </button>
+          {/* Topbar */}
+          <header style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 24px",borderBottom:"1px solid var(--border)",background:"var(--surface)",boxShadow:"0 1px 0 var(--border)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <button onClick={()=>setMob(true)} className="ic-btn mobile-btn" style={{flexShrink:0}}><Ico d={I.menu} s={16}/></button>
               <div>
-                <h1 style={{fontSize:15,fontWeight:700,color:"#fff"}}>
-                  {view==="dashboard"?"Operations Overview":view==="entry"?"Daily Entry":view==="weekly"?"Weekly Summary":"Monthly Report"}
-                </h1>
-                <p style={{fontSize:11,color:"var(--muted)",marginTop:2}}>
-                  {new Date().toLocaleDateString("en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}
-                </p>
+                <h1 style={{fontSize:15,fontWeight:700}}>{vtitle[view]}</h1>
+                <p style={{fontSize:11,color:"var(--muted)",marginTop:1}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p>
               </div>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              {loadingData && (
+              {loading&&(
                 <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"var(--muted)"}}>
-                  <div style={{width:14,height:14,border:"2px solid rgba(79,156,249,.3)",borderTop:"2px solid #4f9cf9",borderRadius:"50%"}} className="spinner"/>
-                  Loading…
+                  <div style={{width:13,height:13,border:"2px solid var(--border)",borderTop:"2px solid var(--blue)",borderRadius:"50%"}} className="spinner-el"/>Syncing…
                 </div>
               )}
-              <div style={{padding:"5px 12px",borderRadius:7,fontSize:11,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",background:user.role==="owner"?"rgba(249,169,79,.1)":"rgba(79,156,249,.1)",color:user.role==="owner"?"var(--amber)":"var(--blue)",border:`1px solid ${user.role==="owner"?"rgba(249,169,79,.25)":"rgba(79,156,249,.25)"}`}}>
-                {user.role==="owner"?"👁 View Only":"✏️ Full Access"}
-              </div>
+              <span className={`tag ${user.role==="owner"?"tag-amber":"tag-blue"}`}>
+                {user.role==="owner"?"👁 Owner":"✏️ Manager"} · {user.name}
+              </span>
             </div>
           </header>
 
-          <main style={{flex:1,overflowY:"auto",padding:"28px 28px 40px",background:"var(--bg)"}}>
-            <div style={{maxWidth:1100,margin:"0 auto"}}>
-              {views[view]}
+          {/* Main */}
+          <main style={{flex:1,overflowY:"auto",padding:"24px 24px 40px",background:"var(--bg)"}}>
+            <div style={{maxWidth:1120,margin:"0 auto"}}>
+              {view==="dashboard"&&<Dashboard entries={entries} onViewDate={viewDate}/>}
+              {view==="entry"&&<EntryForm entries={entries} reloadEntries={loadEntries} user={user}/>}
+              {view==="entries"&&<AllEntries entries={entries} reloadEntries={loadEntries} user={user} onViewDate={viewDate}/>}
+              {view==="monthly"&&<Monthly entries={entries} onViewDate={viewDate} user={user} reloadEntries={loadEntries}/>}
             </div>
           </main>
         </div>
@@ -1075,7 +1219,7 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
