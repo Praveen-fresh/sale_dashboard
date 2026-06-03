@@ -1147,4 +1147,220 @@ function Monthly({entries,onViewDate,user}){
           <KCard label="Wastage %"      value={PCT(wPct)}        icon={I.trash}  col="amber"  idx={5} sub="of sales"/>
         </div>
 
-        <
+        <div style={{padding:"12px 18px",borderRadius:10,background:"var(--amber-bg)",border:"1px solid var(--amber-border)"}}>
+          <p style={{fontSize:11,fontWeight:700,color:"var(--amber)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:4}}>📐 Wastage % Formula</p>
+          <p style={{fontSize:12,color:"var(--txt2)"}}>Wastage % = (Total Wastage Cost ÷ Gross Sales) × 100 &nbsp;=&nbsp; ({INR(mTot.waste)} ÷ {INR(mTot.sales)}) × 100 = <strong style={{color:"var(--amber)"}}>{PCT(wPct)}</strong></p>
+        </div>
+
+        <div className="card" style={{overflow:"hidden"}}>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead><tr style={{background:"var(--bg2)"}}>
+                {["Day","Date","Gross Sales","Cash","Card/UPI","Swiggy","Expenses","Expense Items & Remarks","PO","Wastage","Net Profit","Cash EOD",isMgr?"Actions":""].filter(h=>h!=="").map(h=>(
+                  <th key={h} style={{padding:"10px 13px",textAlign:"left"}}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {mEntries.map((e,i)=>{
+                  const d=new Date(yr,mo,i+1),dn=DN[d.getDay()],t=e?totals(e):null,isSun=d.getDay()===0;
+                  const expRemarks=e?(e.expenses||[]).filter(x=>x.item).map(x=>x.remark?x.item+": "+x.remark:x.item).join(" · ")||"—":"";
+                  return(
+                    <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)",background:isSun?"rgba(217,119,6,.04)":"transparent",cursor:e?"pointer":"default"}}
+                      onClick={()=>e&&onViewDate(e)}>
+                      <td style={{padding:"9px 13px",fontWeight:700,color:isSun?"var(--amber)":"var(--blue)",fontSize:11}}>{dn}</td>
+                      <td style={{padding:"9px 13px",color:"var(--txt2)",whiteSpace:"nowrap"}}>{pad(i+1)} {MNS[mo]}</td>
+                      {e&&t?(<>
+                        <td style={{padding:"9px 13px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--txt2)"}}>{INR(e.sales&&e.sales.cash)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--txt2)"}}>{INR(e.sales&&e.sales.card)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--txt2)"}}>{INR(e.sales&&e.sales.swiggy)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--red)",fontWeight:600}}>{INR(t.expenses)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--txt2)",maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:11}}>{expRemarks}</td>
+                        <td style={{padding:"9px 13px",color:"var(--purple)"}}>{INR(t.po)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
+                        <td style={{padding:"9px 13px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
+                        <td style={{padding:"9px 13px",color:"var(--blue)"}}>{INR(e.cashPosition&&e.cashPosition.cashInHand)}</td>
+                        {isMgr&&(
+                          <td style={{padding:"7px 13px"}} onClick={function(ev){ev.stopPropagation();}}>
+                            <button className="ic-btn ic-btn-blue" title="Edit" onClick={function(){setEditE(e);}}>
+                              <Ico d={I.edit} s={12} col="var(--blue)"/>
+                            </button>
+                          </td>
+                        )}
+                      </>):(
+                        <td colSpan={isMgr?11:10} style={{padding:"9px 13px",color:"var(--muted)",fontStyle:"italic",fontSize:11}}>— no entry —</td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{borderTop:"2px solid var(--green-border)",background:"var(--green-bg)"}}>
+                  <td colSpan={2} style={{padding:"11px 13px",fontWeight:800,color:"var(--green)",fontSize:11,textTransform:"uppercase",letterSpacing:".06em"}}>Monthly Total</td>
+                  <td style={{padding:"11px 13px",fontWeight:800,color:"var(--green)"}}>{INR(mTot.sales)}</td>
+                  <td colSpan={3}/>
+                  <td style={{padding:"11px 13px",fontWeight:800,color:"var(--red)"}}>{INR(mTot.exp)}</td>
+                  <td/>
+                  <td style={{padding:"11px 13px",fontWeight:800,color:"var(--purple)"}}>{INR(mTot.po)}</td>
+                  <td style={{padding:"11px 13px",fontWeight:800,color:"var(--amber)"}}>{INR(mTot.waste)} ({PCT(wPct)})</td>
+                  <td style={{padding:"11px 13px",fontWeight:800,color:mTot.profit>=0?"var(--green)":"var(--red)"}}>{INR(mTot.profit)}</td>
+                  <td>{INR(mTot.cash)}</td>
+                  {isMgr&&<td/>}
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ── APP ─────────────────────────────────────── */
+function App(){
+  const [authOk,setAuthOk]=useState(false);
+  const [user,setUser]=useState(null);
+  const [entries,setEntries]=useState([]);
+  const [loading,setLoading]=useState(false);
+  const [view,setView]=useState("dashboard");
+  const [mob,setMob]=useState(false);
+  const [dayDetail,setDayDetail]=useState(null);
+  const [editFromDetail,setEditFromDetail]=useState(null);
+
+  useEffect(function(){
+    var iv=setInterval(function(){
+      if(!window.__auth||!window.__firebase)return;
+      clearInterval(iv);
+      FB().onAuthStateChanged(getAu(),function(fbUser){
+        if(fbUser){
+          var role=fbUser.email.toLowerCase().indexOf("owner")>=0?"owner":"manager";
+          var name=fbUser.displayName||fbUser.email.split("@")[0];
+          setUser({uid:fbUser.uid,email:fbUser.email,role:role,name:name,avatar:name.slice(0,2).toUpperCase()});
+        }else{
+          setUser(null);
+        }
+        setAuthOk(true);
+      });
+    },100);
+    return function(){clearInterval(iv);};
+  },[]);
+
+  var loadEntries=useCallback(function(){
+    if(!window.__db||!window.__firebase)return Promise.resolve();
+    setLoading(true);
+    var col=FB().collection(getDB(),"entries");
+    var q=FB().query(col,FB().orderBy("date","asc"));
+    return FB().getDocs(q).then(function(snap){
+      setEntries(snap.docs.map(function(d){return d.data();}));
+      setLoading(false);
+    }).catch(function(ex){
+      console.error(ex);
+      setLoading(false);
+    });
+  },[]);
+
+  useEffect(function(){
+    if(user)loadEntries();
+    else setEntries([]);
+  },[user]);
+
+  function logout(){
+    FB().signOut(getAu());
+    setUser(null);
+    setEntries([]);
+  }
+
+  function viewDate(entry){setDayDetail(entry);}
+  function openEditFromDetail(entry){setDayDetail(null);setEditFromDetail(entry);}
+
+  if(!authOk)return React.createElement(React.Fragment,null,React.createElement("style",null,STYLES),React.createElement(Loader,{msg:"Connecting to Firebase..."}));
+  if(!user)return React.createElement(React.Fragment,null,React.createElement("style",null,STYLES),React.createElement(AuthScreen,null));
+
+  var vtitle={dashboard:"Operations Overview",entry:"Daily Entry",entries:"All Entries",monthly:"Monthly Report"};
+
+  return (
+    <>
+      <style>{STYLES}{`
+        .mobile-btn{display:none!important;}
+        @media(max-width:768px){
+          .app-side{display:none!important;}
+          .app-mob-side{display:flex!important;}
+          .mobile-btn{display:flex!important;}
+        }
+      `}</style>
+
+      {dayDetail&&(
+        <DayDetail
+          entry={dayDetail}
+          onClose={function(){setDayDetail(null);}}
+          onEdit={function(){openEditFromDetail(dayDetail);}}
+          isManager={user.role==="manager"}
+        />
+      )}
+
+      {editFromDetail&&(
+        <EditModal
+          entry={editFromDetail}
+          entries={entries}
+          reloadEntries={loadEntries}
+          user={user}
+          onClose={function(){setEditFromDetail(null);}}
+        />
+      )}
+
+      <div style={{display:"flex",height:"100vh",overflow:"hidden",background:"var(--bg)"}}>
+        <div className="app-side">
+          <Sidebar active={view} setActive={setView} user={user} onLogout={logout}/>
+        </div>
+
+        {mob&&(
+          <div style={{position:"fixed",inset:0,zIndex:300,display:"flex"}} className="app-mob-side">
+            <div style={{flex:1,background:"rgba(15,23,42,.35)"}} onClick={function(){setMob(false);}}/>
+            <div style={{width:220}}>
+              <Sidebar active={view} setActive={function(v){setView(v);setMob(false);}} user={user} onLogout={logout}/>
+            </div>
+          </div>
+        )}
+
+        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          <header style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 24px",borderBottom:"1px solid var(--border)",background:"var(--surface)",boxShadow:"0 1px 0 var(--border)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <button onClick={function(){setMob(true);}} className="ic-btn mobile-btn" style={{flexShrink:0}}>
+                <Ico d={I.menu} s={16}/>
+              </button>
+              <div>
+                <h1 style={{fontSize:15,fontWeight:700}}>{vtitle[view]}</h1>
+                <p style={{fontSize:11,color:"var(--muted)",marginTop:1}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p>
+              </div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              {loading&&(
+                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"var(--muted)"}}>
+                  <div style={{width:13,height:13,border:"2px solid var(--border)",borderTop:"2px solid var(--blue)",borderRadius:"50%"}} className="spinner-el"/>
+                  Syncing...
+                </div>
+              )}
+              <span className={"tag "+(user.role==="owner"?"tag-amber":"tag-blue")}>
+                {user.role==="owner"?"👁 Owner":"✏️ Manager"} · {user.name}
+              </span>
+            </div>
+          </header>
+
+          <main style={{flex:1,overflowY:"auto",padding:"24px 24px 40px",background:"var(--bg)"}}>
+            <div style={{maxWidth:1120,margin:"0 auto"}}>
+              {view==="dashboard"&&<Dashboard entries={entries} onViewDate={viewDate}/>}
+              {view==="entry"&&<EntryForm entries={entries} reloadEntries={loadEntries} user={user}/>}
+              {view==="entries"&&<AllEntries entries={entries} reloadEntries={loadEntries} user={user} onViewDate={viewDate}/>}
+              {view==="monthly"&&<Monthly entries={entries} onViewDate={viewDate} user={user} reloadEntries={loadEntries}/>}
+            </div>
+          </main>
+        </div>
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App,null));
+</script>
+</body>
+</html>
