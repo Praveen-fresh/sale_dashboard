@@ -89,13 +89,13 @@ const STYLES=`
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Syne:wght@700;800&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#f0f4f8;
-  --bg2:#e8edf3;
+  --bg:#f5f6fa;
+  --bg2:#eef0f6;
   --surface:#ffffff;
   --card:#ffffff;
-  --card2:#f8fafc;
-  --border:#e2e8f0;
-  --border2:#cbd5e1;
+  --card2:#f9fafb;
+  --border:#e4e7ef;
+  --border2:#cdd2e0;
   --txt:#1e293b;
   --txt2:#475569;
   --muted:#94a3b8;
@@ -495,12 +495,128 @@ function OwnerBanner(){
   );
 }
 
+/* ── GROUPED BAR CHART ───────────────────────── */
+function GroupedBarChart({entries,onViewDate}){
+  const [tooltip,setTooltip]=useState(null); // {x,y,entry,t,salary,po}
+  const data14=entries.slice(-14);
+
+  // per-entry breakdowns
+  const chartData=data14.map(entry=>{
+    const t=totals(entry);
+    const salary=(entry.expenses||[]).filter(x=>x.category==="Salary").reduce((s,x)=>s+(x.amount||0),0);
+    const po=t.po;
+    const otherExp=t.expenses-salary;
+    return{entry,sales:t.sales,expenses:t.expenses,otherExp,salary,po,wastage:t.wastage};
+  });
+
+  const maxVal=Math.max(...chartData.map(d=>Math.max(d.sales,d.expenses,d.po)),1);
+  const h=160; // chart height px
+  const pct=(v)=>Math.max((v/maxVal)*h,v>0?3:0);
+
+  // y-axis gridlines
+  const yTicks=[0,25,50,75,100];
+
+  const BARS=[
+    {key:"sales",    label:"Sales",        col:"#059669",bg:"#d1fae5"},
+    {key:"otherExp", label:"Expenses",     col:"#dc2626",bg:"#fee2e2"},
+    {key:"salary",   label:"Salary",       col:"#7c3aed",bg:"#ede9fe"},
+    {key:"po",       label:"Purchase Ord.",col:"#2563eb",bg:"#dbeafe"},
+  ];
+
+  return(
+    <div className="card" style={{padding:"20px 22px",overflow:"visible"}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16,gap:12,flexWrap:"wrap"}}>
+        <div>
+          <p style={{fontSize:14,fontWeight:700}}>14-Day Breakdown</p>
+          <p style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Sales · Expenses · Salary · Purchase Orders — click any group to view day</p>
+        </div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          {BARS.map(b=>(
+            <span key={b.key} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"var(--txt2)"}}>
+              <span style={{width:10,height:10,borderRadius:2,background:b.col,display:"inline-block",flexShrink:0}}/>
+              {b.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Chart area */}
+      <div style={{position:"relative",paddingLeft:48,paddingBottom:20}}>
+        {/* Y-axis labels + gridlines */}
+        <div style={{position:"absolute",left:0,top:0,bottom:20,width:44,display:"flex",flexDirection:"column",justifyContent:"space-between",alignItems:"flex-end",pointerEvents:"none"}}>
+          {[...yTicks].reverse().map(p=>(
+            <span key={p} style={{fontSize:9,color:"var(--muted)",lineHeight:1,paddingRight:4}}>{p}%</span>
+          ))}
+        </div>
+        {/* Gridlines */}
+        <div style={{position:"absolute",left:48,right:0,top:0,height:h,pointerEvents:"none"}}>
+          {yTicks.map(p=>(
+            <div key={p} style={{position:"absolute",left:0,right:0,bottom:`${p}%`,borderTop:p===0?"1.5px solid var(--border2)":"1px dashed var(--border)",opacity:p===0?1:.7}}/>
+          ))}
+        </div>
+
+        {/* Bars */}
+        <div style={{display:"flex",gap:4,height:h,alignItems:"flex-end",position:"relative"}}>
+          {chartData.map(({entry,sales,otherExp,salary,po},i)=>{
+            const dayLetter=DN[new Date(entry.date+"T00:00:00").getDay()].slice(0,2);
+            const isSun=new Date(entry.date+"T00:00:00").getDay()===0;
+            const vals=[sales,otherExp,salary,po];
+            return(
+              <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:0,minWidth:0,cursor:"pointer"}}
+                onClick={()=>onViewDate(entry)}
+                onMouseEnter={e=>{
+                  const rect=e.currentTarget.getBoundingClientRect();
+                  const parent=e.currentTarget.closest(".chart-scroll").getBoundingClientRect();
+                  setTooltip({x:rect.left-parent.left+rect.width/2,entry,sales,expenses:otherExp,salary,po});
+                  e.currentTarget.style.opacity=".82";
+                }}
+                onMouseLeave={e=>{setTooltip(null);e.currentTarget.style.opacity="1";}}>
+                {/* Bar group */}
+                <div style={{width:"100%",display:"flex",alignItems:"flex-end",gap:1.5,height:h}}>
+                  {BARS.map((b,bi)=>(
+                    <div key={b.key} style={{
+                      flex:1,height:pct(vals[bi]),background:b.col,borderRadius:"3px 3px 1px 1px",
+                      minHeight:vals[bi]>0?3:0,transition:"height .4s ease",opacity:.88,
+                      boxShadow:vals[bi]>0?`0 2px 6px ${b.col}44`:"none",
+                    }}/>
+                  ))}
+                </div>
+                {/* Day label */}
+                <span style={{fontSize:9,color:isSun?"var(--amber)":"var(--muted)",marginTop:4,fontWeight:isSun?700:400}}>{dayLetter}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tooltip */}
+      {tooltip&&(
+        <div style={{position:"absolute",left:tooltip.x,top:-10,transform:"translateX(-50%)",background:"var(--txt)",color:"#fff",borderRadius:9,padding:"10px 14px",fontSize:11,pointerEvents:"none",zIndex:100,minWidth:150,boxShadow:"0 6px 20px rgba(0,0,0,.18)",whiteSpace:"nowrap"}}>
+          <p style={{fontWeight:700,marginBottom:6,borderBottom:"1px solid rgba(255,255,255,.15)",paddingBottom:5}}>{tooltip.entry.date}</p>
+          {[
+            ["Sales",    tooltip.sales,    "#6ee7b7"],
+            ["Expenses", tooltip.expenses, "#fca5a5"],
+            ["Salary",   tooltip.salary,   "#c4b5fd"],
+            ["PO Total", tooltip.po,       "#93c5fd"],
+          ].map(([l,v,c])=>(
+            <div key={l} style={{display:"flex",justifyContent:"space-between",gap:16,marginBottom:3}}>
+              <span style={{color:"rgba(255,255,255,.7)"}}>{l}</span>
+              <span style={{fontWeight:700,color:c}}>{INR(v)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── DASHBOARD ───────────────────────────────── */
 function Dashboard({entries,onViewDate}){
   const last7=entries.slice(-7),today=entries[entries.length-1],td=totals(today);
   const w7=last7.reduce((a,e)=>{const t=totals(e);return{sales:a.sales+t.sales,exp:a.exp+t.expenses,waste:a.waste+t.wastage,profit:a.profit+t.profit};},{sales:0,exp:0,waste:0,profit:0});
   const wPct=w7.sales>0?(w7.waste/w7.sales)*100:0;
-  const max14=Math.max(...entries.slice(-14).map(e=>totals(e).sales),1);
+
   if(!entries.length)return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:320,gap:12,color:"var(--muted)"}}>
       <Ico d={I.bread} s={44}/><p style={{fontSize:15,fontWeight:600}}>No entries yet</p>
@@ -509,6 +625,7 @@ function Dashboard({entries,onViewDate}){
   );
   return(
     <div style={{display:"flex",flexDirection:"column",gap:22}}>
+      {/* Page header */}
       <div className="fade-up" style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
         <div>
           <h2 className="syne" style={{fontSize:22,fontWeight:800}}>Operations Overview</h2>
@@ -516,6 +633,8 @@ function Dashboard({entries,onViewDate}){
         </div>
         <span className="tag tag-green">● Live</span>
       </div>
+
+      {/* KPI cards */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:14}}>
         <KCard label="Today's Sales"    value={INR(td.sales)}    sub="Today"  icon={I.trend}  col="green"  idx={0}/>
         <KCard label="Today's Expenses" value={INR(td.expenses)} sub="Today"  icon={I.warn}   col="red"    idx={1}/>
@@ -523,60 +642,46 @@ function Dashboard({entries,onViewDate}){
         <KCard label="7-Day Wastage"    value={PCT(wPct)}        sub="7 days" icon={I.trash}  col="amber"  idx={3}/>
         <KCard label="7-Day Net Profit" value={INR(w7.profit)}   sub="7 days" icon={I.spark}  col={w7.profit>=0?"green":"red"} idx={4}/>
       </div>
-      {/* Chart + breakdown */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 320px",gap:16}}>
-        <div className="card" style={{padding:"20px 22px"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-            <div><p style={{fontSize:14,fontWeight:700}}>14-Day Sales & Expenses</p><p style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Click a bar to view day report</p></div>
-            <div style={{display:"flex",gap:14}}>
-              {[["Sales","green"],["Expenses","red"]].map(([l,c])=>(
-                <span key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"var(--txt2)"}}>
-                  <span style={{width:10,height:3,borderRadius:2,background:`var(--${c})`,display:"inline-block"}}/>{l}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div style={{display:"flex",alignItems:"flex-end",gap:5,height:140}}>
-            {entries.slice(-14).map((entry,i)=>{
-              const t=totals(entry),sh=(t.sales/max14)*100,eh=(t.expenses/max14)*100;
-              return(
-                <div key={i} onClick={()=>onViewDate(entry)} title={`${entry.date} — click to view`}
-                  style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,height:"100%",cursor:"pointer"}}
-                  onMouseEnter={e=>e.currentTarget.style.opacity=".8"}
-                  onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-                  <div style={{flex:1,display:"flex",alignItems:"flex-end",gap:2,width:"100%"}}>
-                    <div style={{flex:1,height:`${sh}%`,background:"var(--green)",borderRadius:"3px 3px 1px 1px",minHeight:2,opacity:.85}}/>
-                    <div style={{flex:1,height:`${eh}%`,background:"var(--red)",borderRadius:"3px 3px 1px 1px",minHeight:2,opacity:.75}}/>
-                  </div>
-                  <span style={{fontSize:8,color:"var(--muted)"}}>{DN[new Date(entry.date+"T00:00:00").getDay()][0]}</span>
-                </div>
-              );
-            })}
-          </div>
+
+      {/* Grouped bar chart (full width) + sales mix side by side */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:16}}>
+        {/* Chart — wrapped in chart-scroll for tooltip positioning */}
+        <div className="chart-scroll" style={{position:"relative"}}>
+          <GroupedBarChart entries={entries} onViewDate={onViewDate}/>
         </div>
-        <div className="card" style={{padding:"20px 22px"}}>
-          <p style={{fontSize:14,fontWeight:700,marginBottom:16}}>Today's Sales Mix</p>
+
+        {/* Today's sales mix */}
+        <div className="card" style={{padding:"20px 22px",display:"flex",flexDirection:"column"}}>
+          <p style={{fontSize:14,fontWeight:700,marginBottom:4}}>Today's Sales Mix</p>
+          <p style={{fontSize:11,color:"var(--muted)",marginBottom:16}}>{today?.date||"—"}</p>
           {today&&[["Cash",today.sales?.cash,"green"],["Card / UPI",today.sales?.card,"blue"],["Swiggy / Zomato",today.sales?.swiggy,"amber"]].map(([label,val,col])=>{
             const pct=td.sales>0?((val||0)/td.sales)*100:0;
             return(
-              <div key={label} style={{marginBottom:14}}>
+              <div key={label} style={{marginBottom:16}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:12}}>
                   <span style={{color:"var(--txt2)"}}>{label}</span>
-                  <span style={{fontWeight:600,color:`var(--${col})`}}>{INR(val)}</span>
+                  <span style={{fontWeight:700,color:`var(--${col})`}}>{INR(val)}</span>
                 </div>
-                <div style={{height:5,borderRadius:3,background:"var(--bg2)"}}>
-                  <div style={{height:"100%",borderRadius:3,width:`${pct}%`,background:`var(--${col})`}}/>
+                <div style={{height:6,borderRadius:4,background:"var(--bg2)",overflow:"hidden"}}>
+                  <div style={{height:"100%",borderRadius:4,width:`${pct}%`,background:`var(--${col})`,transition:"width .5s ease"}}/>
                 </div>
+                <span style={{fontSize:10,color:"var(--muted)",float:"right",marginTop:3}}>{pct.toFixed(0)}%</span>
               </div>
             );
           })}
-          <div style={{marginTop:16,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between"}}>
+          <div style={{marginTop:"auto",paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <span style={{fontSize:12,color:"var(--txt2)"}}>Total Gross</span>
-            <span className="syne" style={{fontSize:18,fontWeight:800,color:"var(--green)"}}>{INR(td.sales)}</span>
+            <span className="syne" style={{fontSize:20,fontWeight:800,color:"var(--green)"}}>{INR(td.sales)}</span>
+          </div>
+          {/* today's expense quick view */}
+          <div style={{marginTop:12,padding:"10px 12px",borderRadius:8,background:"var(--red-bg)",border:"1px solid var(--red-border)"}}>
+            <p style={{fontSize:10,fontWeight:700,color:"var(--red)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:2}}>Today's Expenses</p>
+            <p className="syne" style={{fontSize:16,fontWeight:800,color:"var(--red)"}}>{INR(td.expenses)}</p>
           </div>
         </div>
       </div>
-      {/* Recent table */}
+
+      {/* Recent 7 days table */}
       <div className="card" style={{overflow:"hidden"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px",borderBottom:"1px solid var(--border)"}}>
           <p style={{fontSize:14,fontWeight:700}}>Recent 7 Days</p>
@@ -585,22 +690,26 @@ function Dashboard({entries,onViewDate}){
         <div style={{overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead><tr style={{background:"var(--bg2)"}}>
-              {["Date","Day","Gross Sales","Expenses","Wastage","Net Profit","Cash In Hand"].map(h=>(
+              {["Date","Day","Gross Sales","Expenses","Salary","PO","Wastage","Net Profit","Cash In Hand"].map(h=>(
                 <th key={h} style={{padding:"9px 16px",textAlign:"left"}}>{h}</th>
               ))}
             </tr></thead>
             <tbody>
               {entries.slice(-7).reverse().map((e,i)=>{
-                const t=totals(e),day=new Date(e.date+"T00:00:00").toLocaleDateString("en-IN",{weekday:"short"});
+                const t=totals(e);
+                const salary=(e.expenses||[]).filter(x=>x.category==="Salary").reduce((s,x)=>s+(x.amount||0),0);
+                const day=new Date(e.date+"T00:00:00").toLocaleDateString("en-IN",{weekday:"short"});
                 return(
                   <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)",cursor:"pointer"}} onClick={()=>onViewDate(e)}>
-                    <td style={{padding:"11px 16px",fontWeight:600}}>{e.date}</td>
-                    <td style={{padding:"11px 16px",color:"var(--muted)"}}>{day}</td>
-                    <td style={{padding:"11px 16px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
-                    <td style={{padding:"11px 16px",color:"var(--red)"}}>{INR(t.expenses)}</td>
-                    <td style={{padding:"11px 16px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
-                    <td style={{padding:"11px 16px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
-                    <td style={{padding:"11px 16px",color:"var(--blue)"}}>{INR(e.cashPosition?.cashInHand)}</td>
+                    <td style={{padding:"10px 16px",fontWeight:600}}>{e.date}</td>
+                    <td style={{padding:"10px 16px",color:"var(--muted)"}}>{day}</td>
+                    <td style={{padding:"10px 16px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
+                    <td style={{padding:"10px 16px",color:"var(--red)"}}>{INR(t.expenses)}</td>
+                    <td style={{padding:"10px 16px",color:"var(--purple)"}}>{INR(salary)}</td>
+                    <td style={{padding:"10px 16px",color:"var(--blue)"}}>{INR(t.po)}</td>
+                    <td style={{padding:"10px 16px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
+                    <td style={{padding:"10px 16px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
+                    <td style={{padding:"10px 16px",color:"var(--blue)"}}>{INR(e.cashPosition?.cashInHand)}</td>
                   </tr>
                 );
               })}
@@ -1038,188 +1147,4 @@ function Monthly({entries,onViewDate,user}){
           <KCard label="Wastage %"      value={PCT(wPct)}        icon={I.trash}  col="amber"  idx={5} sub="of sales"/>
         </div>
 
-        <div style={{padding:"12px 18px",borderRadius:10,background:"var(--amber-bg)",border:"1px solid var(--amber-border)"}}>
-          <p style={{fontSize:11,fontWeight:700,color:"var(--amber)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:4}}>📐 Wastage % Formula</p>
-          <p style={{fontSize:12,color:"var(--txt2)"}}>Wastage % = (Total Wastage Cost ÷ Gross Sales) × 100 &nbsp;=&nbsp; ({INR(mTot.waste)} ÷ {INR(mTot.sales)}) × 100 = <strong style={{color:"var(--amber)"}}>{PCT(wPct)}</strong></p>
-        </div>
-
-        <div className="card" style={{overflow:"hidden"}}>
-          <div style={{overflowX:"auto"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-              <thead><tr style={{background:"var(--bg2)"}}>
-                {["Day","Date","Gross Sales","Cash","Card/UPI","Swiggy","Expenses","Expense Items & Remarks","PO","Wastage","Net Profit","Cash EOD",isMgr?"":""].filter(Boolean).map(h=>(
-                  <th key={h} style={{padding:"10px 13px",textAlign:"left"}}>{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {mEntries.map((e,i)=>{
-                  const d=new Date(yr,mo,i+1),dn=DN[d.getDay()],t=e?totals(e):null,isSun=d.getDay()===0;
-                  const expRemarks=e?(e.expenses||[]).filter(x=>x.item).map(x=>x.remark?`${x.item}: ${x.remark}`:x.item).join(" · ")||"—":"";
-                  return(
-                    <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)",background:isSun?"rgba(217,119,6,.04)":"transparent",cursor:e?"pointer":"default"}}
-                      onClick={()=>e&&onViewDate(e)}>
-                      <td style={{padding:"9px 13px",fontWeight:700,color:isSun?"var(--amber)":"var(--blue)",fontSize:11}}>{dn}</td>
-                      <td style={{padding:"9px 13px",color:"var(--txt2)",whiteSpace:"nowrap"}}>{pad(i+1)} {MNS[mo]}</td>
-                      {e&&t?<>
-                        <td style={{padding:"9px 13px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--txt2)"}}>{INR(e.sales?.cash)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--txt2)"}}>{INR(e.sales?.card)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--txt2)"}}>{INR(e.sales?.swiggy)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--red)",fontWeight:600}}>{INR(t.expenses)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--txt2)",maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:11}}>{expRemarks}</td>
-                        <td style={{padding:"9px 13px",color:"var(--purple)"}}>{INR(t.po)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
-                        <td style={{padding:"9px 13px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--blue)"}}>{INR(e.cashPosition?.cashInHand)}</td>
-                        {isMgr&&(
-                          <td style={{padding:"7px 13px"}} onClick={ev=>ev.stopPropagation()}>
-                            <button className="ic-btn ic-btn-blue" title="Edit" onClick={()=>setEditE(e)}><Ico d={I.edit} s={12} col="var(--blue)"/></button>
-                          </td>
-                        )}
-                      </>:<>
-                        <td colSpan={isMgr?10:9} style={{padding:"9px 13px",color:"var(--muted)",fontStyle:"italic",fontSize:11}}>— no entry —</td>
-                      </>}
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot><tr style={{borderTop:"2px solid var(--green-border)",background:"var(--green-bg)"}}>
-                <td colSpan={2} style={{padding:"11px 13px",fontWeight:800,color:"var(--green)",fontSize:11,textTransform:"uppercase",letterSpacing:".06em"}}>Monthly Total</td>
-                <td style={{padding:"11px 13px",fontWeight:800,color:"var(--green)"}}>{INR(mTot.sales)}</td>
-                <td colSpan={3}/>
-                <td style={{padding:"11px 13px",fontWeight:800,color:"var(--red)"}}>{INR(mTot.exp)}</td>
-                <td/>
-                <td style={{padding:"11px 13px",fontWeight:800,color:"var(--purple)"}}>{INR(mTot.po)}</td>
-                <td style={{padding:"11px 13px",fontWeight:800,color:"var(--amber)"}}>{INR(mTot.waste)} <span style={{fontSize:10,opacity:.8}}>({PCT(wPct)})</span></td>
-                <td style={{padding:"11px 13px",fontWeight:800,color:mTot.profit>=0?"var(--green)":"var(--red)"}}>{INR(mTot.profit)}</td>
-                <td>{INR(mTot.cash)}</td>
-                {isMgr&&<td/>}
-              </tr></tfoot>
-            </table>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-/* ── APP ─────────────────────────────────────── */
-function App(){
-  const [authOk,setAuthOk]=useState(false);
-  const [user,setUser]=useState(null);
-  const [entries,setEntries]=useState([]);
-  const [loading,setLoading]=useState(false);
-  const [view,setView]=useState("dashboard");
-  const [mob,setMob]=useState(false);
-  const [dayDetail,setDayDetail]=useState(null); // entry to show in popup
-  const [editFromDetail,setEditFromDetail]=useState(null); // edit modal from popup
-
-  useEffect(()=>{
-    const iv=setInterval(()=>{
-      if(!window.__auth||!window.__firebase)return;
-      clearInterval(iv);
-      FB().onAuthStateChanged(getAu(),fbUser=>{
-        if(fbUser){
-          const role=fbUser.email.toLowerCase().includes("owner")?"owner":"manager";
-          const name=fbUser.displayName||fbUser.email.split("@")[0];
-          setUser({uid:fbUser.uid,email:fbUser.email,role,name,avatar:name.slice(0,2).toUpperCase()});
-        }else setUser(null);
-        setAuthOk(true);
-      });
-    },100);
-    return()=>clearInterval(iv);
-  },[]);
-
-  const loadEntries=useCallback(async()=>{
-    if(!window.__db||!window.__firebase)return;
-    setLoading(true);
-    try{
-      const{collection,getDocs,query,orderBy}=FB();
-      const snap=await getDocs(query(collection(getDB(),"entries"),orderBy("date","asc")));
-      setEntries(snap.docs.map(d=>d.data()));
-    }catch(ex){console.error(ex);}
-    setLoading(false);
-  },[]);
-
-  useEffect(()=>{if(user)loadEntries();else setEntries([]);},[user]);
-
-  const logout=async()=>{await FB().signOut(getAu());setUser(null);setEntries([]);};
-
-  const viewDate=(entry)=>setDayDetail(entry);
-  const openEditFromDetail=(entry)=>{setDayDetail(null);setEditFromDetail(entry);};
-
-  if(!authOk)return<><style>{STYLES}</style><Loader msg="Connecting to Firebase…"/></>;
-  if(!user)return<><style>{STYLES}</style><AuthScreen/></>;
-
-  const vtitle={dashboard:"Operations Overview",entry:"Daily Entry",entries:"All Entries",monthly:"Monthly Report"};
-
-  return(
-    <>
-      <style>{STYLES}{`
-        .mobile-btn{display:none!important;}
-        @media(max-width:768px){
-          .app-side{display:none!important;}
-          .app-mob-side{display:flex!important;}
-          .mobile-btn{display:flex!important;}
-        }
-      `}</style>
-
-      {/* Day Detail Popup */}
-      {dayDetail&&<DayDetail entry={dayDetail} onClose={()=>setDayDetail(null)} onEdit={()=>openEditFromDetail(dayDetail)} isManager={user.role==="manager"}/>}
-
-      {/* Edit modal triggered from day detail */}
-      {editFromDetail&&<EditModal entry={editFromDetail} entries={entries} reloadEntries={loadEntries} user={user} onClose={()=>setEditFromDetail(null)}/>}
-
-      <div style={{display:"flex",height:"100vh",overflow:"hidden",background:"var(--bg)"}}>
-        {/* Desktop sidebar */}
-        <div className="app-side"><Sidebar active={view} setActive={setView} user={user} onLogout={logout}/></div>
-
-        {/* Mobile sidebar */}
-        {mob&&(
-          <div style={{position:"fixed",inset:0,zIndex:300,display:"flex"}} className="app-mob-side">
-            <div style={{flex:1,background:"rgba(15,23,42,.35)"}} onClick={()=>setMob(false)}/>
-            <div style={{width:220}}><Sidebar active={view} setActive={v=>{setView(v);setMob(false);}} user={user} onLogout={logout}/></div>
-          </div>
-        )}
-
-        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-          {/* Topbar */}
-          <header style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 24px",borderBottom:"1px solid var(--border)",background:"var(--surface)",boxShadow:"0 1px 0 var(--border)"}}>
-            <div style={{display:"flex",alignItems:"center",gap:12}}>
-              <button onClick={()=>setMob(true)} className="ic-btn mobile-btn" style={{flexShrink:0}}><Ico d={I.menu} s={16}/></button>
-              <div>
-                <h1 style={{fontSize:15,fontWeight:700}}>{vtitle[view]}</h1>
-                <p style={{fontSize:11,color:"var(--muted)",marginTop:1}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p>
-              </div>
-            </div>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              {loading&&(
-                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"var(--muted)"}}>
-                  <div style={{width:13,height:13,border:"2px solid var(--border)",borderTop:"2px solid var(--blue)",borderRadius:"50%"}} className="spinner-el"/>Syncing…
-                </div>
-              )}
-              <span className={`tag ${user.role==="owner"?"tag-amber":"tag-blue"}`}>
-                {user.role==="owner"?"👁 Owner":"✏️ Manager"} · {user.name}
-              </span>
-            </div>
-          </header>
-
-          {/* Main */}
-          <main style={{flex:1,overflowY:"auto",padding:"24px 24px 40px",background:"var(--bg)"}}>
-            <div style={{maxWidth:1120,margin:"0 auto"}}>
-              {view==="dashboard"&&<Dashboard entries={entries} onViewDate={viewDate}/>}
-              {view==="entry"&&<EntryForm entries={entries} reloadEntries={loadEntries} user={user}/>}
-              {view==="entries"&&<AllEntries entries={entries} reloadEntries={loadEntries} user={user} onViewDate={viewDate}/>}
-              {view==="monthly"&&<Monthly entries={entries} onViewDate={viewDate} user={user} reloadEntries={loadEntries}/>}
-            </div>
-          </main>
-        </div>
-      </div>
-    </>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script>
-</body>
-</html>
+        <
