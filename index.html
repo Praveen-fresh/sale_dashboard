@@ -2,1365 +2,1360 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Skandan Enterprise · CK's Bakery</title>
-<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
-const firebaseConfig = {
-  apiKey:"AIzaSyCF2irTdybQ-WOuYi2swQr9rigPICbaRLk",
-  authDomain:"skandan-enterprise.firebaseapp.com",
-  projectId:"skandan-enterprise",
-  storageBucket:"skandan-enterprise.firebasestorage.app",
-  messagingSenderId:"143123563000",
-  appId:"1:143123563000:web:2f8632fdbb3c133baf160d",
-  measurementId:"G-W16XP3GXVQ"
-};
-const app=initializeApp(firebaseConfig);
-window.__db=getFirestore(app);
-window.__auth=getAuth(app);
-window.__firebase={collection,getDocs,doc,setDoc,deleteDoc,query,orderBy,signInWithEmailAndPassword,signOut,onAuthStateChanged};
-console.log("✅ Firebase ready");
-</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Skandan Enterprise – CK's Bakery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+/* ── RESET & BASE ─────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{
+  font-family:'Outfit',sans-serif;
+  background:#07090f;
+  color:#e2e8f0;
+  -webkit-font-smoothing:antialiased;
+  font-size:14px;
+}
+button{font-family:'Outfit',sans-serif;cursor:pointer;}
+input,select,textarea{font-family:'Outfit',sans-serif;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px;}
+
+/* ── CSS VARS ─────────────────────────────────────────── */
+:root{
+  --bg:       #07090f;
+  --surf:     #0c1120;
+  --card:     #101828;
+  --card2:    #141f2e;
+  --border:   rgba(255,255,255,.07);
+  --border2:  rgba(255,255,255,.12);
+  --txt:      #e2e8f0;
+  --muted:    #64748b;
+  --muted2:   #94a3b8;
+  --green:    #10d9a0;
+  --green2:   #0ea87a;
+  --red:      #f05470;
+  --blue:     #4d9ef7;
+  --amber:    #f8a73e;
+  --purple:   #9d7ef5;
+  --cyan:     #22d3ee;
+  --sidebar-w: 220px;
+}
+
+/* ── LAYOUT ───────────────────────────────────────────── */
+#app{display:flex;height:100vh;overflow:hidden;}
+.sidebar{
+  width:var(--sidebar-w);min-width:var(--sidebar-w);
+  height:100%;background:var(--surf);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:relative;overflow:hidden;
+  transition:transform .3s ease;
+  z-index:50;
+}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.topbar{
+  flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:13px 24px;background:var(--surf);border-bottom:1px solid var(--border);
+}
+.content{flex:1;overflow-y:auto;padding:24px;}
+.content-inner{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:20px;}
+
+/* ── MOBILE OVERLAY ───────────────────────────────────── */
+.mob-overlay{
+  display:none;position:fixed;inset:0;z-index:49;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(3px);
+}
+
+/* ── AUTH SCREEN ──────────────────────────────────────── */
+#auth-screen{
+  position:fixed;inset:0;z-index:100;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+}
+.auth-bg-orb{
+  position:absolute;border-radius:50%;pointer-events:none;
+}
+.auth-card{
+  position:relative;width:100%;max-width:420px;margin:0 16px;
+  background:var(--card);border:1px solid var(--border2);
+  border-radius:20px;padding:36px;
+  box-shadow:0 32px 80px rgba(0,0,0,.6);
+  animation:fadeUp .4s ease both;
+}
+.auth-logo{
+  width:52px;height:52px;border-radius:14px;
+  background:linear-gradient(135deg,#4d9ef7,#10d9a0);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:16px;
+  box-shadow:0 6px 24px rgba(77,158,247,.3);
+}
+.auth-logo svg{color:#fff;}
+
+/* ── FORM INPUTS ──────────────────────────────────────── */
+.field{display:flex;flex-direction:column;gap:6px;}
+.field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+.ifield{
+  width:100%;padding:10px 13px;
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--border2);
+  border-radius:9px;color:var(--txt);font-size:13px;
+  outline:none;transition:border-color .2s,box-shadow .2s;
+}
+.ifield:focus{border-color:rgba(77,158,247,.6);box-shadow:0 0 0 3px rgba(77,158,247,.1);}
+.ifield::placeholder{color:var(--muted);}
+.ifield option{background:#141f2e;color:var(--txt);}
+.ifield:disabled{opacity:.45;cursor:not-allowed;}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.4);}
+
+/* ── BUTTONS ──────────────────────────────────────────── */
+.btn-primary{
+  padding:11px 20px;border-radius:10px;border:none;
+  background:linear-gradient(135deg,#4d9ef7,#10d9a0);
+  color:#fff;font-weight:700;font-size:14px;
+  box-shadow:0 4px 20px rgba(77,158,247,.3);
+  transition:opacity .2s,transform .15s;
+}
+.btn-primary:hover{opacity:.9;}
+.btn-primary:active{transform:scale(.98);}
+.btn-ghost{
+  padding:8px 16px;border-radius:9px;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--border2);
+  color:var(--muted2);font-size:12px;font-weight:500;
+  transition:all .2s;
+}
+.btn-ghost:hover{color:#fff;border-color:rgba(77,158,247,.4);background:rgba(77,158,247,.08);}
+.btn-pdf{
+  padding:9px 18px;border-radius:10px;border:none;
+  background:linear-gradient(135deg,#f8a73e,#f05470);
+  color:#fff;font-weight:700;font-size:12px;
+  display:flex;align-items:center;gap:7px;
+  box-shadow:0 4px 16px rgba(248,167,62,.25);
+  transition:opacity .2s;
+}
+.btn-pdf:hover{opacity:.9;}
+.btn-add-row{
+  display:flex;align-items:center;gap:5px;
+  background:none;border:none;color:var(--amber);
+  font-size:12px;font-weight:600;padding:4px 0;
+  transition:color .2s;
+}
+.btn-add-row:hover{color:#ffd077;}
+.btn-del{
+  padding:8px;background:rgba(240,84,112,.1);
+  border:1px solid rgba(240,84,112,.2);
+  border-radius:8px;color:var(--red);
+  display:flex;align-items:center;
+  transition:background .2s;
+}
+.btn-del:hover{background:rgba(240,84,112,.2);}
+
+/* ── SIDEBAR ──────────────────────────────────────────── */
+.sidebar-glow{
+  position:absolute;top:-60px;left:50%;transform:translateX(-50%);
+  width:200px;height:200px;border-radius:50%;
+  background:radial-gradient(circle,rgba(77,158,247,.07),transparent 70%);
+  pointer-events:none;
+}
+.sidebar-brand{padding:20px 18px 16px;border-bottom:1px solid var(--border);}
+.sidebar-brand-logo{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,#4d9ef7,#10d9a0);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 3px 12px rgba(77,158,247,.25);flex-shrink:0;
+}
+.brand-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:800;color:#fff;line-height:1.2;}
+.brand-sub{font-size:9px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;}
+.nav-section-label{
+  font-size:9.5px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.1em;
+  padding:4px 8px 8px;margin-top:4px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:9px;
+  padding:9px 11px;border-radius:9px;border:none;
+  font-size:13px;font-weight:500;width:100%;text-align:left;
+  background:transparent;color:var(--muted);
+  transition:all .2s;cursor:pointer;
+  border-left:2px solid transparent;
+}
+.nav-item:hover{background:rgba(255,255,255,.04);color:#fff;}
+.nav-item.active{
+  background:linear-gradient(135deg,rgba(77,158,247,.14),rgba(16,217,160,.07));
+  color:#fff;font-weight:600;
+  border-left-color:#4d9ef7;
+}
+.nav-dot{
+  width:5px;height:5px;border-radius:50%;
+  background:#4d9ef7;box-shadow:0 0 6px #4d9ef7;
+  margin-left:auto;
+}
+.sidebar-user{margin:12px;padding:12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--border);}
+.user-avatar{
+  width:32px;height:32px;border-radius:8px;
+  background:linear-gradient(135deg,#4d9ef7,#9d7ef5);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;color:#fff;flex-shrink:0;
+}
+.role-badge{
+  font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.role-owner{background:rgba(248,167,62,.12);color:var(--amber);}
+.role-manager{background:rgba(77,158,247,.12);color:var(--blue);}
+.btn-logout{
+  display:flex;align-items:center;gap:6px;width:100%;
+  padding:7px 9px;border-radius:7px;border:none;
+  background:rgba(240,84,112,.06);color:var(--muted);
+  font-size:11px;font-weight:500;margin-top:9px;
+  transition:all .2s;
+}
+.btn-logout:hover{color:var(--red);background:rgba(240,84,112,.14);}
+
+/* ── METRIC CARDS ─────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:13px;}
+.kpi-card{
+  border-radius:15px;padding:18px;position:relative;
+  overflow:hidden;cursor:default;
+  transition:transform .2s;
+  animation:fadeUp .35s ease both;
+}
+.kpi-card:hover{transform:translateY(-2px);}
+.kpi-glow{
+  position:absolute;top:-20px;right:-20px;
+  width:80px;height:80px;border-radius:50%;pointer-events:none;
+}
+.kpi-icon-wrap{
+  width:36px;height:36px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:14px;border:1px solid;
+}
+.kpi-value{
+  font-family:'Syne',sans-serif;font-size:20px;font-weight:800;
+  color:#fff;letter-spacing:-.5px;margin-bottom:3px;
+}
+.kpi-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:3px;}
+
+/* ── SECTION CARD ─────────────────────────────────────── */
+.section-card{
+  background:var(--card);border:1px solid var(--border2);
+  border-radius:16px;padding:20px 22px;
+  animation:fadeUp .35s ease both;
+}
+.section-card.accent-green{border-left:3px solid var(--green);}
+.section-card.accent-red{border-left:3px solid var(--red);}
+.section-card.accent-blue{border-left:3px solid var(--blue);}
+.section-card.accent-amber{border-left:3px solid var(--amber);}
+.section-card.accent-purple{border-left:3px solid var(--purple);}
+.section-title{
+  font-size:11px;font-weight:700;color:#fff;
+  text-transform:uppercase;letter-spacing:.09em;margin-bottom:16px;
+}
+
+/* ── TABLE ────────────────────────────────────────────── */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead tr{background:rgba(255,255,255,.02);}
+thead th{
+  padding:10px 14px;text-align:left;
+  font-size:9.5px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;
+}
+tbody tr{border-top:1px solid rgba(255,255,255,.04);transition:background .15s;}
+tbody tr:hover{background:rgba(255,255,255,.025);}
+tbody td{padding:11px 14px;color:var(--muted2);white-space:nowrap;}
+tfoot tr{border-top:2px solid rgba(77,158,247,.2);background:rgba(77,158,247,.04);}
+tfoot td{padding:12px 14px;font-weight:800;font-size:12px;white-space:nowrap;}
+.td-white{color:#fff;font-weight:600;}
+.td-green{color:var(--green);font-weight:700;}
+.td-red{color:var(--red);}
+.td-amber{color:var(--amber);}
+.td-blue{color:var(--blue);}
+.td-purple{color:var(--purple);}
+.td-profit-pos{color:var(--green);font-weight:700;}
+.td-profit-neg{color:var(--red);font-weight:700;}
+
+/* ── ALERTS ───────────────────────────────────────────── */
+.alert-success{
+  display:flex;align-items:center;gap:9px;
+  padding:12px 16px;border-radius:10px;
+  background:rgba(16,217,160,.08);border:1px solid rgba(16,217,160,.2);
+  color:var(--green);font-size:13px;font-weight:500;
+  animation:fadeUp .3s ease both;
+}
+.alert-owner{
+  display:flex;align-items:center;gap:9px;
+  padding:10px 16px;border-radius:10px;
+  background:rgba(248,167,62,.07);border:1px solid rgba(248,167,62,.18);
+  color:var(--amber);font-size:13px;
+}
+.alert-err{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px;border-radius:9px;
+  background:rgba(240,84,112,.1);border:1px solid rgba(240,84,112,.2);
+  color:var(--red);font-size:13px;
+}
+
+/* ── CHART ────────────────────────────────────────────── */
+.chart-bars{display:flex;align-items:flex-end;gap:5px;height:130px;position:relative;}
+.chart-bar-group{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  gap:2px;height:100%;position:relative;cursor:pointer;
+}
+.chart-bar-group:hover .chart-tooltip{opacity:1;transform:translateY(0);}
+.chart-tooltip{
+  position:absolute;bottom:calc(100% + 8px);left:50%;transform:translate(-50%,4px);
+  background:#1a2744;border:1px solid var(--border2);border-radius:8px;
+  padding:7px 10px;font-size:11px;white-space:nowrap;
+  opacity:0;transition:opacity .15s,transform .15s;pointer-events:none;z-index:10;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+}
+.chart-bars-inner{display:flex;align-items:flex-end;gap:2px;width:100%;flex:1;}
+.bar-sales{
+  flex:1;border-radius:4px 4px 2px 2px;min-height:3px;
+  background:linear-gradient(to top,#10d9a0,#4d9ef7);
+  transition:height .4s ease;
+}
+.bar-exp{
+  flex:1;border-radius:4px 4px 2px 2px;min-height:3px;
+  background:linear-gradient(to top,#f05470,#f8a73e);
+  transition:height .4s ease;
+}
+.chart-label{font-size:8px;color:var(--muted);}
+.chart-grid-line{
+  position:absolute;left:0;right:0;
+  border-top:1px solid rgba(255,255,255,.04);pointer-events:none;
+}
+.chart-legend{display:flex;gap:14px;margin-top:10px;}
+.legend-dot{width:10px;height:3px;border-radius:2px;display:inline-block;}
+
+/* ── PROGRESS BAR ─────────────────────────────────────── */
+.prog-bar-bg{height:5px;border-radius:3px;background:rgba(255,255,255,.06);}
+.prog-bar-fill{height:100%;border-radius:3px;transition:width .6s ease;}
+
+/* ── FORMULA BANNER ───────────────────────────────────── */
+.formula-banner{
+  padding:13px 18px;border-radius:12px;
+  background:rgba(248,167,62,.06);border:1px solid rgba(248,167,62,.16);
+}
+
+/* ── DIVIDER ──────────────────────────────────────────── */
+.divider{border:none;border-top:1px solid var(--border);margin:0;}
+
+/* ── PAGE HEADER ──────────────────────────────────────── */
+.page-header{animation:fadeUp .3s ease both;}
+.page-title{font-family:'Syne',sans-serif;font-size:21px;font-weight:800;color:#fff;}
+.page-sub{color:var(--muted);font-size:13px;margin-top:4px;}
+
+/* ── ANIMATIONS ───────────────────────────────────────── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── MOBILE ───────────────────────────────────────────── */
+@media(max-width:768px){
+  :root{--sidebar-w:220px;}
+  .sidebar{position:fixed;top:0;left:0;height:100%;transform:translateX(-100%);z-index:50;}
+  .sidebar.open{transform:translateX(0);}
+  .mob-overlay.show{display:block;}
+  .mob-menu-btn{display:flex!important;}
+  .content{padding:16px;}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+  .kpi-value{font-size:16px;}
+  table{min-width:600px;}
+}
+.mob-menu-btn{display:none;align-items:center;justify-content:center;
+  padding:8px;border-radius:8px;background:rgba(255,255,255,.06);
+  border:none;color:var(--muted2);}
+</style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const {useState,useEffect,useMemo,useCallback,useRef}=React;
-const getDB=()=>window.__db;
-const getAu=()=>window.__auth;
-const FB=()=>window.__firebase;
 
-/* ── helpers ─────────────────────────────────── */
-const INR=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
-const PCT=(n)=>Number(n||0).toFixed(2)+"%";
-const pad=(n)=>String(n).padStart(2,"0");
-const MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
-const MNS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const DN=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const todayStr=()=>{const d=new Date();return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
-const totals=(e)=>{
+<!-- Auth Screen -->
+<div id="auth-screen">
+  <div class="auth-bg-orb" style="width:500px;height:500px;top:5%;left:5%;background:radial-gradient(circle,rgba(77,158,247,.06),transparent 70%);"></div>
+  <div class="auth-bg-orb" style="width:400px;height:400px;bottom:5%;right:5%;background:radial-gradient(circle,rgba(16,217,160,.05),transparent 70%);"></div>
+  <div id="auth-dots" style="position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.04) 1px,transparent 1px);background-size:24px 24px;pointer-events:none;"></div>
+
+  <div class="auth-card">
+    <div class="auth-logo">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+        <line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>
+      </svg>
+    </div>
+    <h1 style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#fff;letter-spacing:-.4px;">Skandan Enterprise</h1>
+    <p style="color:var(--muted);font-size:12px;margin-top:5px;letter-spacing:.05em;text-transform:uppercase;">CK's Bakery Franchise · Operations Portal</p>
+
+    <div style="height:1px;background:var(--border);margin:22px 0;"></div>
+
+    <form id="login-form" style="display:flex;flex-direction:column;gap:15px;">
+      <div class="field">
+        <label>Email Address</label>
+        <input class="ifield" type="email" id="login-email" placeholder="owner@skandan.in" required>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div style="position:relative;">
+          <input class="ifield" type="password" id="login-pass" placeholder="••••••••" required style="padding-right:42px;">
+          <button type="button" id="toggle-pass" style="position:absolute;right:11px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);display:flex;align-items:center;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div id="login-err" class="alert-err" style="display:none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span id="login-err-msg"></span>
+      </div>
+      <button type="submit" class="btn-primary" id="login-btn" style="width:100%;margin-top:4px;">Sign In to Dashboard →</button>
+    </form>
+
+    <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--border);">
+      <p style="font-size:10px;color:var(--muted);text-align:center;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px;">Demo Credentials</p>
+      <div style="display:flex;flex-direction:column;gap:6px;" id="demo-creds"></div>
+    </div>
+  </div>
+</div>
+
+<!-- App Shell (hidden until login) -->
+<div id="app" style="display:none;">
+  <div class="mob-overlay" id="mob-overlay"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-glow"></div>
+    <div class="sidebar-brand">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="sidebar-brand-logo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+            <line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-name">Skandan</div>
+          <div class="brand-sub">Enterprise</div>
+        </div>
+      </div>
+    </div>
+
+    <nav style="flex:1;padding:12px 10px;display:flex;flex-direction:column;">
+      <div class="nav-section-label">Navigation</div>
+      <button class="nav-item active" data-view="dashboard">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Dashboard
+        <span class="nav-dot"></span>
+      </button>
+      <button class="nav-item" data-view="entry">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Daily Entry
+      </button>
+      <button class="nav-item" data-view="weekly">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Weekly Summary
+      </button>
+      <button class="nav-item" data-view="monthly">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Monthly Report
+      </button>
+    </nav>
+
+    <div class="sidebar-user">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;">
+        <div class="user-avatar" id="user-avatar-sb">SK</div>
+        <div style="min-width:0;flex:1;">
+          <div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="user-name-sb">Skandan Kumar</div>
+          <span class="role-badge role-owner" id="user-role-badge">Owner</span>
+        </div>
+      </div>
+      <button class="btn-logout" id="btn-logout">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="mob-menu-btn" id="mob-menu-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#fff;" id="topbar-title">Dashboard</div>
+          <div style="font-size:11px;color:var(--muted);" id="topbar-date"></div>
+        </div>
+      </div>
+      <div id="topbar-role-badge" class="role-badge role-owner">👁 View Only</div>
+    </div>
+
+    <div class="content">
+      <div class="content-inner" id="page-content">
+        <!-- injected by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA & HELPERS
+// ═══════════════════════════════════════════════════════════
+const USERS = [
+  {id:'u1',email:'owner@skandan.in',  password:'owner123',   role:'owner',   name:'Skandan Kumar', avatar:'SK'},
+  {id:'u2',email:'manager@skandan.in',password:'manager123', role:'manager', name:'Ravi Krishnan',  avatar:'RK'},
+];
+
+const r=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const pad=n=>String(n).padStart(2,'0');
+const todayStr=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
+const INR=n=>'₹'+Number(n||0).toLocaleString('en-IN');
+const PCT=n=>Number(n||0).toFixed(2)+'%';
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+// Seed 60 days of mock data
+const seedDB=()=>{
+  const arr=[]; const now=new Date();
+  for(let i=59;i>=0;i--){
+    const d=new Date(now); d.setDate(d.getDate()-i);
+    const ds=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const cash=r(4000,9500),card=r(2500,7000),swiggy=r(1000,5500);
+    arr.push({
+      id:`e${i}`,date:ds,
+      sales:{cash,card,swiggy},
+      expenses:[
+        {item:'Flour & Wheat',amount:r(800,2200),category:'Raw Materials'},
+        {item:'Electricity',  amount:r(200,600), category:'Utilities'},
+        {item:'Staff Wages',  amount:r(600,1400),category:'Salary'},
+        {item:'Packaging',    amount:r(100,350), category:'Miscellaneous'},
+      ],
+      purchaseOrders:[{vendor:'Metro Wholesale',invoice:`INV-${1000+i}`,paid:r(1000,4000),pending:r(0,900)}],
+      openingStock:r(8000,14000),closingStock:r(6000,12000),
+      wastage:[{item:'Bread Loaves',quantity:r(2,14),cost:r(120,750)}],
+      cashPosition:{cashInHand:r(3000,8500),cashInBank:r(10000,32000)},
+    });
+  }
+  return arr;
+};
+
+let DB=seedDB();
+let currentUser=null;
+let currentView='dashboard';
+
+const totals=e=>{
   if(!e)return{sales:0,expenses:0,wastage:0,po:0,profit:0};
   const sales=(e.sales?.cash||0)+(e.sales?.card||0)+(e.sales?.swiggy||0);
   const expenses=(e.expenses||[]).reduce((s,x)=>s+(x.amount||0),0);
-  const wastage=(e.wastage||[]).reduce((s,x)=>s+(x.cost||0),0);
-  const po=(e.purchaseOrders||[]).reduce((s,x)=>s+(x.paid||0)+(x.pending||0),0);
+  const wastage=(e.wastage||[]).reduce((s,w)=>s+(w.cost||0),0);
+  const po=(e.purchaseOrders||[]).reduce((s,p)=>s+(p.paid||0)+(p.pending||0),0);
   return{sales,expenses,wastage,po,profit:sales-expenses-wastage};
 };
 
-/* ── SVG icons ───────────────────────────────── */
-const Ico=({d,s=16,col="currentColor"})=>(
-  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    {Array.isArray(d)?d.map((p,i)=><path key={i} d={p}/>):<path d={d}/>}
-  </svg>
-);
-const I={
-  home:"M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
-  pen:["M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7","M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"],
-  list:["M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2","M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2","M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2","M9 12h6","M9 16h4"],
-  cal:["M3 4h18v18H3z","M3 10h18","M8 2v4","M16 2v4"],
-  logout:["M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4","M16 17l5-5-5-5","M21 12H9"],
-  plus:"M12 5v14 M5 12h14",
-  trash:["M3 6h18","M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"],
-  edit:["M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7","M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"],
-  pdf:["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z","M14 2v6h6","M16 13H8","M16 17H8","M10 9H8"],
-  bread:["M18 8h1a4 4 0 0 1 0 8h-1","M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z","M6 1v3","M10 1v3","M14 1v3"],
-  trend:["M23 6l-9.5 9.5-5-5L1 18","M17 6h6v6"],
-  rupee:"M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
-  box:["M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z","M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"],
-  warn:["M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z","M12 9v4","M12 17h.01"],
-  eye:["M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z","M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"],
-  lock:["M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z","M7 11V7a5 5 0 0 1 10 0v4"],
-  menu:"M3 6h18 M3 12h18 M3 18h18",
-  check:"M20 6L9 17l-5-5",
-  close:"M18 6L6 18 M6 6l12 12",
-  info:["M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z","M12 16v-4","M12 8h.01"],
-  spark:["M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"],
-  note:["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z","M14 2v6h6","M16 13H8","M16 17H8","M10 9H8"],
-  week:"M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01",
-};
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+const $ =id=>document.getElementById(id);
+const $q=(sel,ctx=document)=>ctx.querySelector(sel);
+const $qa=(sel,ctx=document)=>[...ctx.querySelectorAll(sel)];
 
-/* ── GLOBAL STYLES (LIGHT THEME) ─────────────── */
-const STYLES=`
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Syne:wght@700;800&display=swap');
-*{box-sizing:border-box;margin:0;padding:0;}
-:root{
-  --bg:#f5f6fa;
-  --bg2:#eef0f6;
-  --surface:#ffffff;
-  --card:#ffffff;
-  --card2:#f9fafb;
-  --border:#e4e7ef;
-  --border2:#cdd2e0;
-  --txt:#1e293b;
-  --txt2:#475569;
-  --muted:#94a3b8;
-  --green:#059669;
-  --green-bg:#d1fae5;
-  --green-border:#6ee7b7;
-  --red:#dc2626;
-  --red-bg:#fee2e2;
-  --red-border:#fca5a5;
-  --blue:#2563eb;
-  --blue-bg:#dbeafe;
-  --blue-border:#93c5fd;
-  --amber:#d97706;
-  --amber-bg:#fef3c7;
-  --amber-border:#fcd34d;
-  --purple:#7c3aed;
-  --purple-bg:#ede9fe;
-  --purple-border:#c4b5fd;
-  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
-  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
-  --shadow-lg:0 12px 32px rgba(0,0,0,.10),0 4px 8px rgba(0,0,0,.06);
-  --radius:10px;
-  --radius-lg:14px;
-}
-body{background:var(--bg);color:var(--txt);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;font-size:14px;}
-.syne{font-family:'Syne',sans-serif;}
-::-webkit-scrollbar{width:5px;height:5px;}
-::-webkit-scrollbar-track{background:var(--bg2);}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
-.ifield{width:100%;padding:8px 12px;background:var(--card2);border:1.5px solid var(--border);border-radius:8px;color:var(--txt);font-size:13px;font-family:'Inter',sans-serif;outline:none;transition:border-color .18s,box-shadow .18s;}
-.ifield:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1);}
-.ifield::placeholder{color:var(--muted);}
-.ifield option{background:#fff;color:var(--txt);}
-.ifield:disabled{background:var(--bg2);color:var(--muted);cursor:not-allowed;}
-input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}
-input[type=date]::-webkit-calendar-picker-indicator{filter:none;cursor:pointer;}
-@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
-@keyframes spin{to{transform:rotate(360deg);}}
-@keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px);}to{opacity:1;transform:none;}}
-@keyframes slideIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:none;}}
-.fade-up{animation:fadeUp .3s ease both;}
-.spinner-el{animation:spin .75s linear infinite;}
-.modal-in{animation:modalIn .2s ease both;}
-.slide-in{animation:slideIn .25s ease both;}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}
-.btn:disabled{opacity:.55;cursor:not-allowed;}
-.btn-primary{background:var(--blue);color:#fff;box-shadow:0 2px 6px rgba(37,99,235,.3);}
-.btn-primary:hover:not(:disabled){background:#1d4ed8;transform:translateY(-1px);}
-.btn-danger{background:var(--red);color:#fff;box-shadow:0 2px 6px rgba(220,38,38,.25);}
-.btn-danger:hover:not(:disabled){background:#b91c1c;}
-.btn-ghost{background:transparent;color:var(--txt2);border:1.5px solid var(--border);}
-.btn-ghost:hover{background:var(--bg2);border-color:var(--border2);}
-.btn-sm{padding:6px 12px;font-size:12px;border-radius:7px;}
-.ic-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:7px;border:1.5px solid var(--border);background:var(--card2);cursor:pointer;transition:all .15s;}
-.ic-btn:hover{border-color:var(--border2);background:var(--bg2);transform:scale(1.05);}
-.ic-btn-blue{border-color:var(--blue-border);background:var(--blue-bg);}
-.ic-btn-red{border-color:var(--red-border);background:var(--red-bg);}
-.tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.02em;}
-.tag-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);}
-.tag-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);}
-.tag-blue{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border);}
-.tag-amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border);}
-.tag-purple{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border);}
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);}
-.section-head{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
-tr.tr-hover:hover td{background:var(--bg2);}
-th{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;}
-`;
+// Demo credential buttons
+const demoCreds=$('demo-creds');
+USERS.forEach(u=>{
+  const btn=document.createElement('button');
+  btn.className='btn-ghost';
+  btn.style.cssText='display:flex;align-items:center;justify-content:space-between;width:100%;font-size:11px;';
+  btn.innerHTML=`<span style="display:flex;align-items:center;gap:7px;"><span class="role-badge ${u.role==='owner'?'role-owner':'role-manager'}">${u.role}</span>${u.email}</span><span style="color:rgba(255,255,255,.2)">/ ${u.password}</span>`;
+  btn.addEventListener('click',()=>{$('login-email').value=u.email;$('login-pass').value=u.password;});
+  demoCreds.appendChild(btn);
+});
 
-/* ── LOADING ─────────────────────────────────── */
-function Loader({msg="Loading…"}){
-  return(
-    <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"var(--bg)",gap:14}}>
-      <div style={{width:42,height:42,border:"3px solid var(--border)",borderTop:"3px solid var(--blue)",borderRadius:"50%"}} className="spinner-el"/>
-      <p style={{color:"var(--muted)",fontSize:13}}>{msg}</p>
-    </div>
-  );
-}
+$('toggle-pass').addEventListener('click',()=>{
+  const inp=$('login-pass');
+  inp.type=inp.type==='password'?'text':'password';
+});
 
-/* ── CONFIRM MODAL ───────────────────────────── */
-function Confirm({title,msg,onOk,onCancel,danger=true}){
-  return(
-    <div style={{position:"fixed",inset:0,zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(15,23,42,.35)",backdropFilter:"blur(3px)"}}>
-      <div className="modal-in card" style={{maxWidth:400,width:"90%",padding:28,boxShadow:"var(--shadow-lg)"}}>
-        <h3 style={{fontSize:16,fontWeight:700,marginBottom:8}}>{title}</h3>
-        <p style={{color:"var(--txt2)",fontSize:13,lineHeight:1.7,marginBottom:24}}>{msg}</p>
-        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
-          <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
-          <button className={`btn ${danger?"btn-danger":"btn-primary"}`} onClick={onOk}>{danger?"Delete":"Confirm"}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+$('login-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const email=$('login-email').value.trim();
+  const pass=$('login-pass').value;
+  $('login-btn').textContent='Signing in…';$('login-btn').disabled=true;
+  $('login-err').style.display='none';
+  await new Promise(r=>setTimeout(r,600));
+  const user=USERS.find(u=>u.email===email&&u.password===pass);
+  if(user){
+    currentUser=user;
+    $('auth-screen').style.display='none';
+    $('app').style.display='flex';
+    initApp();
+  } else {
+    $('login-err-msg').textContent='Invalid credentials. Please try again.';
+    $('login-err').style.display='flex';
+  }
+  $('login-btn').textContent='Sign In to Dashboard →';$('login-btn').disabled=false;
+});
 
-/* ── DAY DETAIL POPUP ────────────────────────── */
-function DayDetail({entry,onClose,onEdit,isManager}){
-  const t=totals(entry);
-  const date=new Date(entry.date+"T00:00:00");
-  const dateLabel=date.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-  const rows=[
-    {label:"Cash Sales",val:entry.sales?.cash,col:"green"},
-    {label:"Card / UPI",val:entry.sales?.card,col:"blue"},
-    {label:"Swiggy / Zomato",val:entry.sales?.swiggy,col:"amber"},
-  ];
-  return(
-    <div style={{position:"fixed",inset:0,zIndex:1500,display:"flex",alignItems:"flex-start",justifyContent:"center",background:"rgba(15,23,42,.3)",backdropFilter:"blur(3px)",overflowY:"auto",padding:"40px 16px"}}>
-      <div className="modal-in card" style={{width:"100%",maxWidth:700,boxShadow:"var(--shadow-lg)"}}>
-        {/* Header */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"20px 24px",borderBottom:"1px solid var(--border)",background:"linear-gradient(135deg,#eff6ff,#f0fdf4)",borderRadius:"var(--radius-lg) var(--radius-lg) 0 0"}}>
-          <div>
-            <div className="tag tag-blue" style={{marginBottom:6}}>Daily Report</div>
-            <h2 className="syne" style={{fontSize:20,fontWeight:800,color:"var(--txt)"}}>{dateLabel}</h2>
-          </div>
-          <div style={{display:"flex",gap:8}}>
-            {isManager&&<button className="btn btn-primary btn-sm" onClick={onEdit}><Ico d={I.edit} s={13}/>Edit</button>}
-            <button className="ic-btn" onClick={onClose}><Ico d={I.close} s={15}/></button>
-          </div>
-        </div>
+// ═══════════════════════════════════════════════════════════
+// APP INIT
+// ═══════════════════════════════════════════════════════════
+function initApp(){
+  // Update sidebar user info
+  $('user-avatar-sb').textContent=currentUser.avatar;
+  $('user-name-sb').textContent=currentUser.name;
+  const rb=$('user-role-badge');
+  rb.textContent=currentUser.role==='owner'?'Owner':'Manager';
+  rb.className='role-badge '+(currentUser.role==='owner'?'role-owner':'role-manager');
 
-        <div style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:20}}>
-          {/* KPI row */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
-            {[
-              {label:"Gross Sales",val:INR(t.sales),col:"green"},
-              {label:"Total Expenses",val:INR(t.expenses),col:"red"},
-              {label:"Wastage",val:INR(t.wastage),col:"amber"},
-              {label:"Net Profit",val:INR(t.profit),col:t.profit>=0?"green":"red"},
-            ].map(k=>(
-              <div key={k.label} style={{padding:"14px 16px",borderRadius:10,background:`var(--${k.col}-bg)`,border:`1px solid var(--${k.col}-border)`}}>
-                <p style={{fontSize:10,fontWeight:700,color:`var(--${k.col})`,textTransform:"uppercase",letterSpacing:".06em",marginBottom:5}}>{k.label}</p>
-                <p className="syne" style={{fontSize:18,fontWeight:800,color:`var(--${k.col})`}}>{k.val}</p>
-              </div>
-            ))}
-          </div>
+  // Topbar
+  const tbrb=$('topbar-role-badge');
+  tbrb.textContent=currentUser.role==='owner'?'👁 View Only':'✏️ Full Access';
+  tbrb.className='role-badge '+(currentUser.role==='owner'?'role-owner':'role-manager');
 
-          {/* Sales breakdown */}
-          <div>
-            <p className="section-head" style={{marginBottom:10}}>Sales Breakdown</p>
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {rows.map(r=>{
-                const pct=t.sales>0?((r.val||0)/t.sales)*100:0;
-                return(
-                  <div key={r.label} style={{display:"flex",alignItems:"center",gap:12}}>
-                    <span style={{width:120,fontSize:12,color:"var(--txt2)",flexShrink:0}}>{r.label}</span>
-                    <div style={{flex:1,height:7,background:"var(--bg2)",borderRadius:4,overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${pct}%`,background:`var(--${r.col})`,borderRadius:4}}/>
-                    </div>
-                    <span style={{width:80,fontSize:12,fontWeight:600,textAlign:"right",color:`var(--${r.col})`}}>{INR(r.val)}</span>
-                    <span style={{width:40,fontSize:11,color:"var(--muted)",textAlign:"right"}}>{pct.toFixed(0)}%</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+  $('topbar-date').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
-          {/* Expenses with remark */}
-          {entry.expenses?.length>0&&(
-            <div>
-              <p className="section-head" style={{marginBottom:10}}>Expenses</p>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-                <thead><tr style={{background:"var(--bg2)"}}>
-                  {["Item","Category","Amount","Remark"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left"}}>{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {entry.expenses.map((x,i)=>(
-                    <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)"}}>
-                      <td style={{padding:"8px 12px",fontWeight:500}}>{x.item}</td>
-                      <td style={{padding:"8px 12px"}}><span className={`tag tag-${x.category==="Salary"?"purple":x.category==="Utilities"?"blue":"amber"}`}>{x.category}</span></td>
-                      <td style={{padding:"8px 12px",fontWeight:600,color:"var(--red)"}}>{INR(x.amount)}</td>
-                      <td style={{padding:"8px 12px",color:"var(--txt2)",fontStyle:x.remark?"normal":"italic",fontSize:11}}>{x.remark||"—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Wastage */}
-          {entry.wastage?.filter(w=>w.item).length>0&&(
-            <div>
-              <p className="section-head" style={{marginBottom:10}}>Wastage Details</p>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-                <thead><tr style={{background:"var(--bg2)"}}>
-                  {["Item","Quantity","Cost"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left"}}>{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {entry.wastage.filter(w=>w.item).map((w,i)=>(
-                    <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)"}}>
-                      <td style={{padding:"8px 12px",fontWeight:500}}>{w.item}</td>
-                      <td style={{padding:"8px 12px"}}>{w.quantity}</td>
-                      <td style={{padding:"8px 12px",fontWeight:600,color:"var(--amber)"}}>{INR(w.cost)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* POs */}
-          {entry.purchaseOrders?.filter(p=>p.vendor).length>0&&(
-            <div>
-              <p className="section-head" style={{marginBottom:10}}>Purchase Orders</p>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-                <thead><tr style={{background:"var(--bg2)"}}>
-                  {["Vendor","Invoice","Paid","Pending"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left"}}>{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {entry.purchaseOrders.filter(p=>p.vendor).map((p,i)=>(
-                    <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)"}}>
-                      <td style={{padding:"8px 12px",fontWeight:500}}>{p.vendor}</td>
-                      <td style={{padding:"8px 12px",color:"var(--txt2)"}}>{p.invoice||"—"}</td>
-                      <td style={{padding:"8px 12px",fontWeight:600,color:"var(--green)"}}>{INR(p.paid)}</td>
-                      <td style={{padding:"8px 12px",fontWeight:600,color:"var(--red)"}}>{INR(p.pending)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Cash position */}
-          <div style={{display:"flex",gap:12}}>
-            <div style={{flex:1,padding:"12px 16px",borderRadius:10,background:"var(--blue-bg)",border:"1px solid var(--blue-border)"}}>
-              <p style={{fontSize:11,fontWeight:700,color:"var(--blue)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Cash in Hand (EOD)</p>
-              <p className="syne" style={{fontSize:18,fontWeight:800,color:"var(--blue)"}}>{INR(entry.cashPosition?.cashInHand)}</p>
-            </div>
-            <div style={{flex:1,padding:"12px 16px",borderRadius:10,background:"var(--green-bg)",border:"1px solid var(--green-border)"}}>
-              <p style={{fontSize:11,fontWeight:700,color:"var(--green)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Cash in Bank (EOD)</p>
-              <p className="syne" style={{fontSize:18,fontWeight:800,color:"var(--green)"}}>{INR(entry.cashPosition?.cashInBank)}</p>
-            </div>
-            {(entry.openingStock||entry.closingStock)&&(
-              <div style={{flex:1,padding:"12px 16px",borderRadius:10,background:"var(--amber-bg)",border:"1px solid var(--amber-border)"}}>
-                <p style={{fontSize:11,fontWeight:700,color:"var(--amber)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Stock O→C</p>
-                <p className="syne" style={{fontSize:18,fontWeight:800,color:"var(--amber)"}}>{INR(entry.openingStock)} → {INR(entry.closingStock)}</p>
-              </div>
-            )}
-          </div>
-
-          {entry.updatedBy&&(
-            <p style={{fontSize:11,color:"var(--muted)",textAlign:"right"}}>Last updated by {entry.updatedBy} · {entry.updatedAt?new Date(entry.updatedAt).toLocaleString("en-IN"):""}</p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── AUTH SCREEN ─────────────────────────────── */
-function AuthScreen(){
-  const [email,setEmail]=useState("");
-  const [pass,setPass]=useState("");
-  const [err,setErr]=useState("");
-  const [busy,setBusy]=useState(false);
-  const [sp,setSp]=useState(false);
-  const submit=async(e)=>{
-    e?.preventDefault();setErr("");setBusy(true);
-    try{await FB().signInWithEmailAndPassword(getAu(),email,pass);}
-    catch(ex){setErr(ex.code==="auth/invalid-credential"||ex.code==="auth/wrong-password"||ex.code==="auth/user-not-found"?"Invalid email or password.":ex.code==="auth/too-many-requests"?"Too many attempts.":ex.message||"Sign-in failed.");}
-    setBusy(false);
-  };
-  return(
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#eff6ff 0%,#f0fdf4 100%)"}}>
-      <div className="fade-up" style={{width:"100%",maxWidth:420,padding:"0 20px"}}>
-        <div style={{textAlign:"center",marginBottom:32}}>
-          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:56,height:56,borderRadius:14,background:"var(--blue)",marginBottom:14,boxShadow:"0 8px 24px rgba(37,99,235,.25)"}}>
-            <Ico d={I.bread} s={24} col="#fff"/>
-          </div>
-          <h1 className="syne" style={{fontSize:24,fontWeight:800,color:"var(--txt)"}}>Skandan Enterprise</h1>
-          <p style={{color:"var(--muted)",fontSize:13,marginTop:5,letterSpacing:".04em"}}>CK'S BAKERY · OPERATIONS PORTAL</p>
-        </div>
-        <div className="card" style={{padding:32,boxShadow:"var(--shadow-lg)"}}>
-          <h2 style={{fontSize:17,fontWeight:700,marginBottom:4}}>Sign in</h2>
-          <p style={{color:"var(--muted)",fontSize:12,marginBottom:24}}>Use your Firebase account credentials</p>
-          <form onSubmit={submit} style={{display:"flex",flexDirection:"column",gap:14}}>
-            <div>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--txt2)",marginBottom:6,textTransform:"uppercase",letterSpacing:".06em"}}>Email</label>
-              <input className="ifield" type="email" placeholder="your@email.com" value={email} onChange={e=>setEmail(e.target.value)} required/>
-            </div>
-            <div>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--txt2)",marginBottom:6,textTransform:"uppercase",letterSpacing:".06em"}}>Password</label>
-              <div style={{position:"relative"}}>
-                <input className="ifield" type={sp?"text":"password"} placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} required style={{paddingRight:40}}/>
-                <button type="button" onClick={()=>setSp(p=>!p)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--muted)"}}><Ico d={I.eye} s={14}/></button>
-              </div>
-            </div>
-            {err&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,background:"var(--red-bg)",border:"1px solid var(--red-border)",color:"var(--red)",fontSize:12}}><Ico d={I.warn} s={14}/>{err}</div>}
-            <button type="submit" disabled={busy} className="btn btn-primary" style={{marginTop:4,justifyContent:"center",padding:"11px 0",fontSize:14}}>
-              {busy?"Signing in…":"Sign In →"}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── SIDEBAR ─────────────────────────────────── */
-function Sidebar({active,setActive,user,onLogout}){
-  const nav=[
-    {id:"dashboard",label:"Dashboard",icon:I.home},
-    {id:"entry",label:"Daily Entry",icon:I.pen},
-    {id:"entries",label:"All Entries",icon:I.list},
-    {id:"monthly",label:"Monthly Report",icon:I.cal},
-  ];
-  return(
-    <aside style={{width:220,minWidth:220,height:"100%",background:"var(--surface)",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column",boxShadow:"1px 0 0 var(--border)"}}>
-      <div style={{padding:"20px 16px 16px",borderBottom:"1px solid var(--border)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:34,height:34,borderRadius:9,background:"var(--blue)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 2px 8px rgba(37,99,235,.25)"}}>
-            <Ico d={I.bread} s={16} col="#fff"/>
-          </div>
-          <div>
-            <p className="syne" style={{fontSize:14,fontWeight:800,lineHeight:1.1}}>Skandan</p>
-            <p style={{fontSize:10,color:"var(--muted)",letterSpacing:".05em",textTransform:"uppercase"}}>Enterprise</p>
-          </div>
-        </div>
-      </div>
-      <nav style={{flex:1,padding:"12px 10px",display:"flex",flexDirection:"column",gap:2}}>
-        <p style={{fontSize:10,fontWeight:700,color:"var(--muted)",letterSpacing:".1em",textTransform:"uppercase",padding:"4px 8px 8px"}}>Menu</p>
-        {nav.map(item=>{
-          const isA=active===item.id;
-          return(
-            <button key={item.id} onClick={()=>setActive(item.id)}
-              style={{display:"flex",alignItems:"center",gap:9,padding:"9px 11px",borderRadius:9,border:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:isA?600:500,fontSize:13,textAlign:"left",transition:"all .15s",
-                background:isA?"var(--blue-bg)":"transparent",
-                color:isA?"var(--blue)":"var(--txt2)",
-                borderLeft:isA?"2px solid var(--blue)":"2px solid transparent"}}
-              onMouseEnter={e=>{if(!isA){e.currentTarget.style.background="var(--bg2)";e.currentTarget.style.color="var(--txt)";}}}
-              onMouseLeave={e=>{if(!isA){e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--txt2)";}}}
-            >
-              <Ico d={item.icon} s={15} col={isA?"var(--blue)":"var(--muted)"}/>
-              {item.label}
-            </button>
-          );
-        })}
-      </nav>
-      <div style={{margin:"0 10px 12px",padding:"12px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:10}}>
-          <div style={{width:32,height:32,borderRadius:8,background:user.role==="owner"?"var(--amber)":"var(--blue)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:"#fff",flexShrink:0}}>{user.avatar}</div>
-          <div style={{minWidth:0}}>
-            <p style={{fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name}</p>
-            <span className={`tag ${user.role==="owner"?"tag-amber":"tag-blue"}`} style={{marginTop:2}}>
-              {user.role==="owner"?"👁 Owner":"✏️ Manager"}
-            </span>
-          </div>
-        </div>
-        <button onClick={onLogout} className="btn btn-ghost btn-sm" style={{width:"100%",justifyContent:"center"}}>
-          <Ico d={I.logout} s={13}/>Sign Out
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-/* ── METRIC CARD ─────────────────────────────── */
-function KCard({label,value,sub,icon,col,idx=0}){
-  return(
-    <div className="fade-up card" style={{animationDelay:`${idx*55}ms`,padding:"18px 20px",borderTop:`3px solid var(--${col})`}}>
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
-        <div style={{width:36,height:36,borderRadius:9,background:`var(--${col}-bg)`,border:`1px solid var(--${col}-border)`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <Ico d={icon} s={15} col={`var(--${col})`}/>
-        </div>
-        {sub&&<span style={{fontSize:10,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".07em",fontWeight:600}}>{sub}</span>}
-      </div>
-      <p className="syne" style={{fontSize:21,fontWeight:800,color:`var(--${col})`,letterSpacing:"-.3px"}}>{value}</p>
-      <p style={{fontSize:11,color:"var(--txt2)",fontWeight:600,marginTop:3,textTransform:"uppercase",letterSpacing:".05em"}}>{label}</p>
-    </div>
-  );
-}
-
-/* ── SECTION WRAPPER ─────────────────────────── */
-function Sec({title,col="blue",children}){
-  const C={green:"var(--green)",red:"var(--red)",blue:"var(--blue)",amber:"var(--amber)",purple:"var(--purple)"};
-  return(
-    <div className="card" style={{padding:"18px 20px",borderLeft:`3px solid ${C[col]||C.blue}`}}>
-      <p style={{fontSize:12,fontWeight:700,color:"var(--txt2)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:14}}>{title}</p>
-      {children}
-    </div>
-  );
-}
-function Fld({label,error,children}){
-  return(
-    <div>
-      {label&&<label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--txt2)",marginBottom:6,textTransform:"uppercase",letterSpacing:".06em"}}>{label}</label>}
-      {children}
-      {error&&<p style={{fontSize:11,color:"var(--red)",marginTop:4}}>{error}</p>}
-    </div>
-  );
-}
-function OwnerBanner(){
-  return(
-    <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px",borderRadius:9,background:"var(--amber-bg)",border:"1px solid var(--amber-border)",marginBottom:16,fontSize:13,color:"var(--amber)"}}>
-      <Ico d={I.lock} s={15} col="var(--amber)"/>
-      <strong>Owner View-Only</strong> — Only the Store Manager can add, edit or delete entries.
-    </div>
-  );
-}
-
-/* ── GROUPED BAR CHART ───────────────────────── */
-function GroupedBarChart({entries,onViewDate}){
-  const [tooltip,setTooltip]=useState(null); // {x,y,entry,t,salary,po}
-  const data14=entries.slice(-14);
-
-  // per-entry breakdowns
-  const chartData=data14.map(entry=>{
-    const t=totals(entry);
-    const salary=(entry.expenses||[]).filter(x=>x.category==="Salary").reduce((s,x)=>s+(x.amount||0),0);
-    const po=t.po;
-    const otherExp=t.expenses-salary;
-    return{entry,sales:t.sales,expenses:t.expenses,otherExp,salary,po,wastage:t.wastage};
+  // Nav clicks
+  $qa('.nav-item').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      currentView=btn.dataset.view;
+      $qa('.nav-item').forEach(b=>{b.classList.remove('active');$q('.nav-dot',b)?.remove();});
+      btn.classList.add('active');
+      const dot=document.createElement('span');dot.className='nav-dot';btn.appendChild(dot);
+      closeSidebar();
+      renderView();
+    });
   });
 
-  const maxVal=Math.max(...chartData.map(d=>Math.max(d.sales,d.expenses,d.po)),1);
-  const h=160; // chart height px
-  const pct=(v)=>Math.max((v/maxVal)*h,v>0?3:0);
+  // Logout
+  $('btn-logout').addEventListener('click',()=>{
+    currentUser=null;currentView='dashboard';
+    $('app').style.display='none';
+    $('auth-screen').style.display='flex';
+    $('login-email').value='';$('login-pass').value='';
+  });
 
-  // y-axis gridlines
-  const yTicks=[0,25,50,75,100];
+  // Mobile
+  $('mob-menu-btn').addEventListener('click',()=>{
+    $('sidebar').classList.add('open');
+    $('mob-overlay').classList.add('show');
+  });
+  $('mob-overlay').addEventListener('click',closeSidebar);
 
-  const BARS=[
-    {key:"sales",    label:"Sales",        col:"#059669",bg:"#d1fae5"},
-    {key:"otherExp", label:"Expenses",     col:"#dc2626",bg:"#fee2e2"},
-    {key:"salary",   label:"Salary",       col:"#7c3aed",bg:"#ede9fe"},
-    {key:"po",       label:"Purchase Ord.",col:"#2563eb",bg:"#dbeafe"},
-  ];
-
-  return(
-    <div className="card" style={{padding:"20px 22px",overflow:"visible"}}>
-      {/* Header */}
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16,gap:12,flexWrap:"wrap"}}>
-        <div>
-          <p style={{fontSize:14,fontWeight:700}}>14-Day Breakdown</p>
-          <p style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Sales · Expenses · Salary · Purchase Orders — click any group to view day</p>
-        </div>
-        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-          {BARS.map(b=>(
-            <span key={b.key} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"var(--txt2)"}}>
-              <span style={{width:10,height:10,borderRadius:2,background:b.col,display:"inline-block",flexShrink:0}}/>
-              {b.label}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Chart area */}
-      <div style={{position:"relative",paddingLeft:48,paddingBottom:20}}>
-        {/* Y-axis labels + gridlines */}
-        <div style={{position:"absolute",left:0,top:0,bottom:20,width:44,display:"flex",flexDirection:"column",justifyContent:"space-between",alignItems:"flex-end",pointerEvents:"none"}}>
-          {[...yTicks].reverse().map(p=>(
-            <span key={p} style={{fontSize:9,color:"var(--muted)",lineHeight:1,paddingRight:4}}>{p}%</span>
-          ))}
-        </div>
-        {/* Gridlines */}
-        <div style={{position:"absolute",left:48,right:0,top:0,height:h,pointerEvents:"none"}}>
-          {yTicks.map(p=>(
-            <div key={p} style={{position:"absolute",left:0,right:0,bottom:`${p}%`,borderTop:p===0?"1.5px solid var(--border2)":"1px dashed var(--border)",opacity:p===0?1:.7}}/>
-          ))}
-        </div>
-
-        {/* Bars */}
-        <div style={{display:"flex",gap:4,height:h,alignItems:"flex-end",position:"relative"}}>
-          {chartData.map(({entry,sales,otherExp,salary,po},i)=>{
-            const dayLetter=DN[new Date(entry.date+"T00:00:00").getDay()].slice(0,2);
-            const isSun=new Date(entry.date+"T00:00:00").getDay()===0;
-            const vals=[sales,otherExp,salary,po];
-            return(
-              <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:0,minWidth:0,cursor:"pointer"}}
-                onClick={()=>onViewDate(entry)}
-                onMouseEnter={e=>{
-                  const rect=e.currentTarget.getBoundingClientRect();
-                  const parent=e.currentTarget.closest(".chart-scroll").getBoundingClientRect();
-                  setTooltip({x:rect.left-parent.left+rect.width/2,entry,sales,expenses:otherExp,salary,po});
-                  e.currentTarget.style.opacity=".82";
-                }}
-                onMouseLeave={e=>{setTooltip(null);e.currentTarget.style.opacity="1";}}>
-                {/* Bar group */}
-                <div style={{width:"100%",display:"flex",alignItems:"flex-end",gap:1.5,height:h}}>
-                  {BARS.map((b,bi)=>(
-                    <div key={b.key} style={{
-                      flex:1,height:pct(vals[bi]),background:b.col,borderRadius:"3px 3px 1px 1px",
-                      minHeight:vals[bi]>0?3:0,transition:"height .4s ease",opacity:.88,
-                      boxShadow:vals[bi]>0?`0 2px 6px ${b.col}44`:"none",
-                    }}/>
-                  ))}
-                </div>
-                {/* Day label */}
-                <span style={{fontSize:9,color:isSun?"var(--amber)":"var(--muted)",marginTop:4,fontWeight:isSun?700:400}}>{dayLetter}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Tooltip */}
-      {tooltip&&(
-        <div style={{position:"absolute",left:tooltip.x,top:-10,transform:"translateX(-50%)",background:"var(--txt)",color:"#fff",borderRadius:9,padding:"10px 14px",fontSize:11,pointerEvents:"none",zIndex:100,minWidth:150,boxShadow:"0 6px 20px rgba(0,0,0,.18)",whiteSpace:"nowrap"}}>
-          <p style={{fontWeight:700,marginBottom:6,borderBottom:"1px solid rgba(255,255,255,.15)",paddingBottom:5}}>{tooltip.entry.date}</p>
-          {[
-            ["Sales",    tooltip.sales,    "#6ee7b7"],
-            ["Expenses", tooltip.expenses, "#fca5a5"],
-            ["Salary",   tooltip.salary,   "#c4b5fd"],
-            ["PO Total", tooltip.po,       "#93c5fd"],
-          ].map(([l,v,c])=>(
-            <div key={l} style={{display:"flex",justifyContent:"space-between",gap:16,marginBottom:3}}>
-              <span style={{color:"rgba(255,255,255,.7)"}}>{l}</span>
-              <span style={{fontWeight:700,color:c}}>{INR(v)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  renderView();
 }
 
-/* ── DASHBOARD ───────────────────────────────── */
-function Dashboard({entries,onViewDate}){
-  const last7=entries.slice(-7),today=entries[entries.length-1],td=totals(today);
+function closeSidebar(){
+  $('sidebar').classList.remove('open');
+  $('mob-overlay').classList.remove('show');
+}
+
+const viewTitles={dashboard:'Operations Overview',entry:'Daily Entry',weekly:'Weekly Summary',monthly:'Monthly Report'};
+function renderView(){
+  $('topbar-title').textContent=viewTitles[currentView];
+  const out=$('page-content');
+  out.innerHTML='';
+  if(currentView==='dashboard') renderDashboard(out);
+  else if(currentView==='entry') renderEntry(out);
+  else if(currentView==='weekly') renderWeekly(out);
+  else if(currentView==='monthly') renderMonthly(out);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SVG ICON HELPER
+// ═══════════════════════════════════════════════════════════
+function svg(paths,size=16){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${Array.isArray(paths)?paths.map(p=>`<path d="${p}"/>`).join(''):paths}</svg>`;
+}
+const SVGS={
+  trend:['M23 6l-9.5 9.5-5-5L1 18','M17 6h6v6'],
+  warn:['M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z','M12 9v4','M12 17h.01'],
+  cash:'M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
+  trash:['M3 6h18','M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2'],
+  star:['M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'],
+  box:['M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z','M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16'],
+  check:'M20 6L9 17l-5-5',
+  plus:'M12 5v14 M5 12h14',
+  lock:['M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z','M7 11V7a5 5 0 0 1 10 0v4'],
+  pdf:['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z','M14 2v6h6','M16 13H8','M16 17H8','M10 9H8'],
+};
+
+// ═══════════════════════════════════════════════════════════
+// KPI CARD HTML
+// ═══════════════════════════════════════════════════════════
+const KPI_STYLES={
+  green:{g:'linear-gradient(135deg,rgba(16,217,160,.12),rgba(16,217,160,.04))',b:'rgba(16,217,160,.22)',ic:'rgba(16,217,160,.15)',c:'#10d9a0',glow:'rgba(16,217,160,.15)'},
+  red:  {g:'linear-gradient(135deg,rgba(240,84,112,.12),rgba(240,84,112,.04))',b:'rgba(240,84,112,.22)',ic:'rgba(240,84,112,.15)',c:'#f05470',glow:'rgba(240,84,112,.15)'},
+  blue: {g:'linear-gradient(135deg,rgba(77,158,247,.12),rgba(77,158,247,.04))',b:'rgba(77,158,247,.22)',ic:'rgba(77,158,247,.15)',c:'#4d9ef7',glow:'rgba(77,158,247,.15)'},
+  amber:{g:'linear-gradient(135deg,rgba(248,167,62,.12),rgba(248,167,62,.04))',b:'rgba(248,167,62,.22)',ic:'rgba(248,167,62,.15)',c:'#f8a73e',glow:'rgba(248,167,62,.15)'},
+  purple:{g:'linear-gradient(135deg,rgba(157,126,245,.12),rgba(157,126,245,.04))',b:'rgba(157,126,245,.22)',ic:'rgba(157,126,245,.15)',c:'#9d7ef5',glow:'rgba(157,126,245,.15)'},
+};
+
+function kpiCard(label,value,sub,iconKey,accent,delay=0){
+  const s=KPI_STYLES[accent]||KPI_STYLES.blue;
+  return `<div class="kpi-card" style="background:${s.g};border:1px solid ${s.b};animation-delay:${delay}ms;">
+    <div class="kpi-glow" style="background:radial-gradient(circle,${s.glow},transparent 70%);"></div>
+    <div class="kpi-icon-wrap" style="background:${s.ic};border-color:${s.b};">${svg(SVGS[iconKey]||SVGS.trend,15)}</div>
+    <div class="kpi-value">${value}</div>
+    <div class="kpi-label" style="color:${s.c}">${label}</div>
+    ${sub?`<div class="kpi-sub">${sub}</div>`:''}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD VIEW
+// ═══════════════════════════════════════════════════════════
+function renderDashboard(out){
+  const last7=DB.slice(-7);
+  const todayE=DB[DB.length-1];
+  const td=totals(todayE);
   const w7=last7.reduce((a,e)=>{const t=totals(e);return{sales:a.sales+t.sales,exp:a.exp+t.expenses,waste:a.waste+t.wastage,profit:a.profit+t.profit};},{sales:0,exp:0,waste:0,profit:0});
   const wPct=w7.sales>0?(w7.waste/w7.sales)*100:0;
 
-  if(!entries.length)return(
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:320,gap:12,color:"var(--muted)"}}>
-      <Ico d={I.bread} s={44}/><p style={{fontSize:15,fontWeight:600}}>No entries yet</p>
-      <p style={{fontSize:13}}>Add your first daily entry to see data here.</p>
+  const chart14=DB.slice(-14);
+  const maxS=Math.max(...chart14.map(e=>totals(e).sales),1);
+
+  // Sales breakdown prog bars
+  const pbRows=[
+    ['Cash Sales',todayE?.sales?.cash||0,'#10d9a0'],
+    ['Card / UPI',todayE?.sales?.card||0,'#4d9ef7'],
+    ['Swiggy / Zomato',todayE?.sales?.swiggy||0,'#f8a73e'],
+  ];
+
+  out.innerHTML=`
+  <!-- Header -->
+  <div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div class="page-title">Operations Overview</div>
+        <div class="page-sub">CK's Bakery Franchise · Real-time metrics</div>
+      </div>
+      <div style="padding:5px 13px;border-radius:7px;background:rgba(16,217,160,.1);border:1px solid rgba(16,217,160,.2);font-size:11px;font-weight:700;color:var(--green);letter-spacing:.05em;">● LIVE</div>
     </div>
-  );
-  return(
-    <div style={{display:"flex",flexDirection:"column",gap:22}}>
-      {/* Page header */}
-      <div className="fade-up" style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    ${kpiCard("Today's Sales",INR(td.sales),'Today','trend','green',0)}
+    ${kpiCard("Today's Expenses",INR(td.expenses),'Today','warn','red',50)}
+    ${kpiCard('Cash in Hand',INR(todayE?.cashPosition?.cashInHand),'End of Day','cash','blue',100)}
+    ${kpiCard('7-Day Wastage',PCT(wPct),'of gross sales','trash','amber',150)}
+    ${kpiCard('7-Day Net Profit',INR(w7.profit),'Last 7 days','star','purple',200)}
+  </div>
+
+  <!-- Chart + Breakdown -->
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;" class="dash-2col">
+    <div class="section-card" style="animation-delay:120ms">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px;">
         <div>
-          <h2 className="syne" style={{fontSize:22,fontWeight:800}}>Operations Overview</h2>
-          <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
+          <div class="section-title" style="margin-bottom:2px;">14-Day Sales Trend</div>
+          <div style="font-size:11px;color:var(--muted);">Hover / tap bars for details</div>
         </div>
-        <span className="tag tag-green">● Live</span>
-      </div>
-
-      {/* KPI cards */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:14}}>
-        <KCard label="Today's Sales"    value={INR(td.sales)}    sub="Today"  icon={I.trend}  col="green"  idx={0}/>
-        <KCard label="Today's Expenses" value={INR(td.expenses)} sub="Today"  icon={I.warn}   col="red"    idx={1}/>
-        <KCard label="Cash in Hand"     value={INR(today?.cashPosition?.cashInHand)} sub="EOD" icon={I.rupee} col="blue" idx={2}/>
-        <KCard label="7-Day Wastage"    value={PCT(wPct)}        sub="7 days" icon={I.trash}  col="amber"  idx={3}/>
-        <KCard label="7-Day Net Profit" value={INR(w7.profit)}   sub="7 days" icon={I.spark}  col={w7.profit>=0?"green":"red"} idx={4}/>
-      </div>
-
-      {/* Grouped bar chart (full width) + sales mix side by side */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:16}}>
-        {/* Chart — wrapped in chart-scroll for tooltip positioning */}
-        <div className="chart-scroll" style={{position:"relative"}}>
-          <GroupedBarChart entries={entries} onViewDate={onViewDate}/>
-        </div>
-
-        {/* Today's sales mix */}
-        <div className="card" style={{padding:"20px 22px",display:"flex",flexDirection:"column"}}>
-          <p style={{fontSize:14,fontWeight:700,marginBottom:4}}>Today's Sales Mix</p>
-          <p style={{fontSize:11,color:"var(--muted)",marginBottom:16}}>{today?.date||"—"}</p>
-          {today&&[["Cash",today.sales?.cash,"green"],["Card / UPI",today.sales?.card,"blue"],["Swiggy / Zomato",today.sales?.swiggy,"amber"]].map(([label,val,col])=>{
-            const pct=td.sales>0?((val||0)/td.sales)*100:0;
-            return(
-              <div key={label} style={{marginBottom:16}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:12}}>
-                  <span style={{color:"var(--txt2)"}}>{label}</span>
-                  <span style={{fontWeight:700,color:`var(--${col})`}}>{INR(val)}</span>
-                </div>
-                <div style={{height:6,borderRadius:4,background:"var(--bg2)",overflow:"hidden"}}>
-                  <div style={{height:"100%",borderRadius:4,width:`${pct}%`,background:`var(--${col})`,transition:"width .5s ease"}}/>
-                </div>
-                <span style={{fontSize:10,color:"var(--muted)",float:"right",marginTop:3}}>{pct.toFixed(0)}%</span>
-              </div>
-            );
-          })}
-          <div style={{marginTop:"auto",paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:12,color:"var(--txt2)"}}>Total Gross</span>
-            <span className="syne" style={{fontSize:20,fontWeight:800,color:"var(--green)"}}>{INR(td.sales)}</span>
-          </div>
-          {/* today's expense quick view */}
-          <div style={{marginTop:12,padding:"10px 12px",borderRadius:8,background:"var(--red-bg)",border:"1px solid var(--red-border)"}}>
-            <p style={{fontSize:10,fontWeight:700,color:"var(--red)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:2}}>Today's Expenses</p>
-            <p className="syne" style={{fontSize:16,fontWeight:800,color:"var(--red)"}}>{INR(td.expenses)}</p>
-          </div>
+        <div class="chart-legend">
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);">
+            <span class="legend-dot" style="background:var(--green);"></span>Sales
+          </span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);">
+            <span class="legend-dot" style="background:var(--red);"></span>Expenses
+          </span>
         </div>
       </div>
-
-      {/* Recent 7 days table */}
-      <div className="card" style={{overflow:"hidden"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px",borderBottom:"1px solid var(--border)"}}>
-          <p style={{fontSize:14,fontWeight:700}}>Recent 7 Days</p>
-          <span style={{fontSize:11,color:"var(--muted)"}}>Click any row to view full report</span>
-        </div>
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-            <thead><tr style={{background:"var(--bg2)"}}>
-              {["Date","Day","Gross Sales","Expenses","Salary","PO","Wastage","Net Profit","Cash In Hand"].map(h=>(
-                <th key={h} style={{padding:"9px 16px",textAlign:"left"}}>{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {entries.slice(-7).reverse().map((e,i)=>{
-                const t=totals(e);
-                const salary=(e.expenses||[]).filter(x=>x.category==="Salary").reduce((s,x)=>s+(x.amount||0),0);
-                const day=new Date(e.date+"T00:00:00").toLocaleDateString("en-IN",{weekday:"short"});
-                return(
-                  <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)",cursor:"pointer"}} onClick={()=>onViewDate(e)}>
-                    <td style={{padding:"10px 16px",fontWeight:600}}>{e.date}</td>
-                    <td style={{padding:"10px 16px",color:"var(--muted)"}}>{day}</td>
-                    <td style={{padding:"10px 16px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
-                    <td style={{padding:"10px 16px",color:"var(--red)"}}>{INR(t.expenses)}</td>
-                    <td style={{padding:"10px 16px",color:"var(--purple)"}}>{INR(salary)}</td>
-                    <td style={{padding:"10px 16px",color:"var(--blue)"}}>{INR(t.po)}</td>
-                    <td style={{padding:"10px 16px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
-                    <td style={{padding:"10px 16px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
-                    <td style={{padding:"10px 16px",color:"var(--blue)"}}>{INR(e.cashPosition?.cashInHand)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── ENTRY FORM (new + edit) ─────────────────── */
-function EntryForm({entries,reloadEntries,user,prefill=null,onDone=null}){
-  const canEdit=user.role==="manager";
-  const isEdit=!!prefill;
-  const init=(e)=>({
-    date:e?.date??todayStr(),
-    sales:e?.sales??{cash:"",card:"",swiggy:""},
-    exps:e?.expenses?.length?e.expenses.map(x=>({...x})):[{item:"",amount:"",category:"Raw Materials",remark:""}],
-    pos:e?.purchaseOrders?.length?e.purchaseOrders.map(p=>({...p})):[{vendor:"",invoice:"",paid:"",pending:""}],
-    opening:e?.openingStock??"",
-    closing:e?.closingStock??"",
-    waste:e?.wastage?.length?e.wastage.map(w=>({...w})):[{item:"",quantity:"",cost:""}],
-    cash:e?.cashPosition??{cashInHand:"",cashInBank:""},
-  });
-  const [f,setF]=useState(init(prefill));
-  const [saved,setSaved]=useState(false);
-  const [saving,setSaving]=useState(false);
-  const [errs,setErrs]=useState({});
-
-  // For new entry: auto-load existing when date changes
-  useEffect(()=>{
-    if(isEdit)return;
-    const ex=entries.find(e=>e.date===f.date);
-    if(ex)setF(init(ex));
-    else setF(p=>({...init(null),date:p.date}));
-    setSaved(false);setErrs({});
-  },[f.date,isEdit]);
-
-  const upd=(k,v)=>setF(p=>({...p,[k]:v}));
-  const updA=(k,i,fk,v)=>setF(p=>({...p,[k]:p[k].map((r,idx)=>idx===i?{...r,[fk]:v}:r)}));
-  const addA=(k,blank)=>setF(p=>({...p,[k]:[...p[k],blank]}));
-  const delA=(k,i)=>setF(p=>({...p,[k]:p[k].filter((_,idx)=>idx!==i)}));
-
-  const save=async()=>{
-    const e={};if(!f.date)e.date="Required";setErrs(e);if(Object.keys(e).length)return;
-    setSaving(true);
-    const entry={
-      id:f.date,date:f.date,
-      sales:{cash:+f.sales.cash||0,card:+f.sales.card||0,swiggy:+f.sales.swiggy||0},
-      expenses:f.exps.filter(x=>x.item).map(x=>({item:x.item,amount:+x.amount||0,category:x.category||"Raw Materials",remark:x.remark||""})),
-      purchaseOrders:f.pos.filter(p=>p.vendor).map(p=>({vendor:p.vendor,invoice:p.invoice||"",paid:+p.paid||0,pending:+p.pending||0})),
-      openingStock:+f.opening||0,closingStock:+f.closing||0,
-      wastage:f.waste.filter(w=>w.item).map(w=>({item:w.item,quantity:+w.quantity||0,cost:+w.cost||0})),
-      cashPosition:{cashInHand:+f.cash.cashInHand||0,cashInBank:+f.cash.cashInBank||0},
-      updatedAt:new Date().toISOString(),updatedBy:user.email,
-    };
-    try{
-      await FB().setDoc(FB().doc(getDB(),"entries",f.date),entry);
-      await reloadEntries();
-      if(onDone){onDone();return;}
-      setSaved(true);setTimeout(()=>setSaved(false),3500);
-    }catch(ex){alert("Save failed: "+ex.message);}
-    setSaving(false);
-  };
-
-  const totalSales=(+f.sales.cash||0)+(+f.sales.card||0)+(+f.sales.swiggy||0);
-  const totalExp=f.exps.reduce((s,x)=>s+(+x.amount||0),0);
-
-  return(
-    <div style={{display:"flex",flexDirection:"column",gap:18}}>
-      {!isEdit&&(
-        <div className="fade-up">
-          <h2 className="syne" style={{fontSize:22,fontWeight:800}}>Daily Entry</h2>
-          <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>Record daily operations for CK's Bakery</p>
-        </div>
-      )}
-      {!canEdit&&<OwnerBanner/>}
-      {saved&&(
-        <div style={{display:"flex",alignItems:"center",gap:9,padding:"11px 14px",borderRadius:9,background:"var(--green-bg)",border:"1px solid var(--green-border)",color:"var(--green)",fontSize:13}}>
-          <Ico d={I.check} s={15} col="var(--green)"/>Entry for <strong>{f.date}</strong> saved to Firebase!
-        </div>
-      )}
-
-      {/* Date */}
-      <Sec title="📅 Date" col="blue">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-          <Fld label="Entry Date" error={errs.date}>
-            <input className="ifield" type="date" value={f.date} onChange={e=>upd("date",e.target.value)} max={todayStr()} disabled={!canEdit||isEdit}/>
-          </Fld>
-          <div style={{padding:"12px 16px",borderRadius:9,background:"var(--green-bg)",border:"1px solid var(--green-border)",display:"flex",flexDirection:"column",justifyContent:"center"}}>
-            <p style={{fontSize:11,fontWeight:700,color:"var(--green)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>Gross Sales Preview</p>
-            <p className="syne" style={{fontSize:22,fontWeight:800,color:"var(--green)"}}>{INR(totalSales)}</p>
-          </div>
-        </div>
-      </Sec>
-
-      {/* Sales */}
-      <Sec title="💰 Daily Gross Sales" col="green">
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-          {[["Cash Sales (₹)","cash"],["Card / UPI (₹)","card"],["Swiggy / Zomato (₹)","swiggy"]].map(([l,k])=>(
-            <Fld key={k} label={l}><input className="ifield" type="number" min="0" placeholder="0" value={f.sales[k]||""} onChange={e=>upd("sales",{...f.sales,[k]:e.target.value})} disabled={!canEdit}/></Fld>
-          ))}
-        </div>
-        {totalSales>0&&<p style={{fontSize:12,color:"var(--green)",marginTop:10,fontWeight:600}}>Total: {INR(totalSales)}</p>}
-      </Sec>
-
-      {/* Expenses — with Remark column */}
-      <Sec title="🧾 Expenses" col="red">
-        {f.exps.map((x,i)=>(
-          <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1.5fr 1.5fr 2fr auto",gap:8,marginBottom:9,alignItems:"end"}}>
-            <Fld label={i===0?"Item Name":""}><input className="ifield" placeholder="e.g. Flour" value={x.item||""} onChange={e=>updA("exps",i,"item",e.target.value)} disabled={!canEdit}/></Fld>
-            <Fld label={i===0?"Amount (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={x.amount||""} onChange={e=>updA("exps",i,"amount",e.target.value)} disabled={!canEdit}/></Fld>
-            <Fld label={i===0?"Category":""}>
-              <select className="ifield" value={x.category||"Raw Materials"} onChange={e=>updA("exps",i,"category",e.target.value)} disabled={!canEdit}>
-                {["Raw Materials","Utilities","Salary","Miscellaneous"].map(c=><option key={c}>{c}</option>)}
-              </select>
-            </Fld>
-            <Fld label={i===0?"Remark / Note":""}><input className="ifield" placeholder="Optional note…" value={x.remark||""} onChange={e=>updA("exps",i,"remark",e.target.value)} disabled={!canEdit}/></Fld>
-            <div style={{paddingBottom:2}}>{canEdit&&f.exps.length>1&&<button onClick={()=>delA("exps",i)} className="ic-btn ic-btn-red"><Ico d={I.trash} s={13} col="var(--red)"/></button>}</div>
-          </div>
-        ))}
-        {canEdit&&<button onClick={()=>addA("exps",{item:"",amount:"",category:"Raw Materials",remark:""})} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:600,color:"var(--blue)",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}><Ico d={I.plus} s={13} col="var(--blue)"/>Add Expense Row</button>}
-        {totalExp>0&&<p style={{fontSize:12,color:"var(--red)",marginTop:8,fontWeight:600}}>Total: {INR(totalExp)}</p>}
-      </Sec>
-
-      {/* POs */}
-      <Sec title="📦 Purchase Orders" col="purple">
-        {f.pos.map((p,i)=>(
-          <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1.5fr 1fr 1fr auto",gap:8,marginBottom:9,alignItems:"end"}}>
-            <Fld label={i===0?"Vendor":""}><input className="ifield" placeholder="Vendor name" value={p.vendor||""} onChange={e=>updA("pos",i,"vendor",e.target.value)} disabled={!canEdit}/></Fld>
-            <Fld label={i===0?"Invoice No.":""}><input className="ifield" placeholder="INV-001" value={p.invoice||""} onChange={e=>updA("pos",i,"invoice",e.target.value)} disabled={!canEdit}/></Fld>
-            <Fld label={i===0?"Paid (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={p.paid||""} onChange={e=>updA("pos",i,"paid",e.target.value)} disabled={!canEdit}/></Fld>
-            <Fld label={i===0?"Pending (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={p.pending||""} onChange={e=>updA("pos",i,"pending",e.target.value)} disabled={!canEdit}/></Fld>
-            <div style={{paddingBottom:2}}>{canEdit&&f.pos.length>1&&<button onClick={()=>delA("pos",i)} className="ic-btn ic-btn-red"><Ico d={I.trash} s={13} col="var(--red)"/></button>}</div>
-          </div>
-        ))}
-        {canEdit&&<button onClick={()=>addA("pos",{vendor:"",invoice:"",paid:"",pending:""})} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:600,color:"var(--blue)",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}><Ico d={I.plus} s={13} col="var(--blue)"/>Add PO</button>}
-      </Sec>
-
-      {/* Stock */}
-      <Sec title="📊 Opening & Closing Stock" col="amber">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-          <Fld label="Opening Stock Value (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={f.opening} onChange={e=>upd("opening",e.target.value)} disabled={!canEdit}/></Fld>
-          <Fld label="Closing Stock Value (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={f.closing} onChange={e=>upd("closing",e.target.value)} disabled={!canEdit}/></Fld>
-        </div>
-        {f.opening&&f.closing&&(
-          <p style={{fontSize:12,marginTop:8,fontWeight:600,color:(+f.closing-(+f.opening))>=0?"var(--green)":"var(--amber)"}}>
-            Stock Movement: {INR(+f.closing-(+f.opening))} ({(+f.closing-(+f.opening))>=0?"Gain":"Loss"})
-          </p>
-        )}
-      </Sec>
-
-      {/* Wastage */}
-      <Sec title="⚠️ Wastage Details" col="amber">
-        {f.waste.map((w,i)=>(
-          <div key={i} style={{display:"grid",gridTemplateColumns:"3fr 1fr 1fr auto",gap:8,marginBottom:9,alignItems:"end"}}>
-            <Fld label={i===0?"Item Name":""}><input className="ifield" placeholder="e.g. Bread Loaves" value={w.item||""} onChange={e=>updA("waste",i,"item",e.target.value)} disabled={!canEdit}/></Fld>
-            <Fld label={i===0?"Qty":""}><input className="ifield" type="number" min="0" placeholder="0" value={w.quantity||""} onChange={e=>updA("waste",i,"quantity",e.target.value)} disabled={!canEdit}/></Fld>
-            <Fld label={i===0?"Cost (₹)":""}><input className="ifield" type="number" min="0" placeholder="0" value={w.cost||""} onChange={e=>updA("waste",i,"cost",e.target.value)} disabled={!canEdit}/></Fld>
-            <div style={{paddingBottom:2}}>{canEdit&&f.waste.length>1&&<button onClick={()=>delA("waste",i)} className="ic-btn ic-btn-red"><Ico d={I.trash} s={13} col="var(--red)"/></button>}</div>
-          </div>
-        ))}
-        {canEdit&&<button onClick={()=>addA("waste",{item:"",quantity:"",cost:""})} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:600,color:"var(--blue)",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}><Ico d={I.plus} s={13} col="var(--blue)"/>Add Wastage Item</button>}
-      </Sec>
-
-      {/* Cash */}
-      <Sec title="💵 End-of-Day Cash Position" col="blue">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-          <Fld label="Cash in Hand (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={f.cash.cashInHand||""} onChange={e=>upd("cash",{...f.cash,cashInHand:e.target.value})} disabled={!canEdit}/></Fld>
-          <Fld label="Cash in Bank / Account (₹)"><input className="ifield" type="number" min="0" placeholder="0.00" value={f.cash.cashInBank||""} onChange={e=>upd("cash",{...f.cash,cashInBank:e.target.value})} disabled={!canEdit}/></Fld>
-        </div>
-      </Sec>
-
-      {canEdit?(
-        <div style={{display:"flex",gap:10}}>
-          {onDone&&<button className="btn btn-ghost" onClick={onDone}>Cancel</button>}
-          <button className="btn btn-primary" onClick={save} disabled={saving} style={{flex:1,justifyContent:"center",padding:"12px 0",fontSize:14}}>
-            {saving?(isEdit?"Updating…":"Saving…"):(isEdit?"Update Entry":"Save Daily Entry")}
-          </button>
-        </div>
-      ):(
-        <div style={{textAlign:"center",padding:"13px",borderRadius:9,background:"var(--amber-bg)",border:"1px solid var(--amber-border)",color:"var(--amber)",fontSize:13}}>
-          <Ico d={I.lock} s={14} col="var(--amber)"/> Entry saving is disabled for Owner accounts
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ── EDIT MODAL ──────────────────────────────── */
-function EditModal({entry,entries,reloadEntries,user,onClose}){
-  return(
-    <div style={{position:"fixed",inset:0,zIndex:1000,display:"flex",alignItems:"flex-start",justifyContent:"center",background:"rgba(15,23,42,.3)",backdropFilter:"blur(3px)",overflowY:"auto",padding:"32px 16px"}}>
-      <div className="modal-in card" style={{width:"100%",maxWidth:860,boxShadow:"var(--shadow-lg)"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 22px",borderBottom:"1px solid var(--border)",background:"var(--blue-bg)"}}>
-          <div>
-            <h2 className="syne" style={{fontSize:19,fontWeight:800}}>Edit Entry</h2>
-            <p style={{color:"var(--txt2)",fontSize:13,marginTop:2}}>Editing <strong>{entry.date}</strong></p>
-          </div>
-          <button className="ic-btn" onClick={onClose}><Ico d={I.close} s={15}/></button>
-        </div>
-        <div style={{padding:"22px"}}>
-          <EntryForm entries={entries} reloadEntries={reloadEntries} user={user} prefill={entry} onDone={onClose}/>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── ALL ENTRIES ─────────────────────────────── */
-function AllEntries({entries,reloadEntries,user,onViewDate}){
-  const isMgr=user.role==="manager";
-  const [editE,setEditE]=useState(null);
-  const [delE,setDelE]=useState(null);
-  const [deleting,setDeleting]=useState(false);
-  const [search,setSearch]=useState("");
-  const [sortDir,setSortDir]=useState("desc");
-
-  const filtered=useMemo(()=>{
-    let list=[...entries];
-    if(search)list=list.filter(e=>e.date.includes(search)||e.expenses?.some(x=>x.item?.toLowerCase().includes(search.toLowerCase())));
-    list.sort((a,b)=>sortDir==="desc"?b.date.localeCompare(a.date):a.date.localeCompare(b.date));
-    return list;
-  },[entries,search,sortDir]);
-
-  const doDelete=async()=>{
-    if(!delE)return;setDeleting(true);
-    try{await FB().deleteDoc(FB().doc(getDB(),"entries",delE.date));await reloadEntries();}
-    catch(ex){alert("Delete failed: "+ex.message);}
-    setDeleting(false);setDelE(null);
-  };
-
-  return(
-    <>
-      {editE&&<EditModal entry={editE} entries={entries} reloadEntries={reloadEntries} user={user} onClose={()=>setEditE(null)}/>}
-      {delE&&<Confirm title="Delete Entry" msg={`Permanently delete the entry for ${delE.date}? This action cannot be undone.`} onOk={doDelete} onCancel={()=>setDelE(null)}/>}
-      <div style={{display:"flex",flexDirection:"column",gap:18}}>
-        <div className="fade-up" style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
-          <div>
-            <h2 className="syne" style={{fontSize:22,fontWeight:800}}>All Entries</h2>
-            <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>{entries.length} total records · click any row to view full report</p>
-          </div>
-          {!isMgr&&<span className="tag tag-amber"><Ico d={I.lock} s={11} col="var(--amber)"/>View-only</span>}
-        </div>
-        <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-          <input className="ifield" placeholder="Search by date (e.g. 2026-05) or item name…" value={search} onChange={e=>setSearch(e.target.value)} style={{maxWidth:340}}/>
-          <button className="btn btn-ghost btn-sm" onClick={()=>setSortDir(d=>d==="desc"?"asc":"desc")}>
-            {sortDir==="desc"?"↓ Newest first":"↑ Oldest first"}
-          </button>
-          <span style={{fontSize:12,color:"var(--muted)",marginLeft:"auto"}}>{filtered.length} shown</span>
-        </div>
-        {filtered.length===0?(
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:200,gap:12,color:"var(--muted)"}}>
-            <Ico d={I.list} s={38}/><p style={{fontSize:14}}>{entries.length===0?"No entries yet.":"No matches found."}</p>
-          </div>
-        ):(
-          <div className="card" style={{overflow:"hidden"}}>
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-                <thead><tr style={{background:"var(--bg2)"}}>
-                  {["Date","Day","Gross Sales","Expenses","Expense Items","Wastage","Net Profit","Cash in Hand",isMgr?"Actions":""].filter(Boolean).map(h=>(
-                    <th key={h} style={{padding:"10px 14px",textAlign:"left"}}>{h}</th>
-                  ))}
-                </tr></thead>
-                <tbody>
-                  {filtered.map((e)=>{
-                    const t=totals(e),isSun=new Date(e.date+"T00:00:00").getDay()===0;
-                    // expense summary for table
-                    const expSummary=(e.expenses||[]).filter(x=>x.item).slice(0,2).map(x=>`${x.item}${x.remark?" ("+x.remark+")":""}`).join(", ")+(e.expenses?.length>2?` +${e.expenses.length-2} more`:"");
-                    return(
-                      <tr key={e.date} className="tr-hover" style={{borderTop:"1px solid var(--border)",cursor:"pointer"}} onClick={()=>onViewDate(e)}>
-                        <td style={{padding:"10px 14px",fontWeight:700}}>{e.date}</td>
-                        <td style={{padding:"10px 14px",fontWeight:600,color:isSun?"var(--amber)":"var(--blue)",fontSize:11}}>{DN[new Date(e.date+"T00:00:00").getDay()]}</td>
-                        <td style={{padding:"10px 14px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
-                        <td style={{padding:"10px 14px",color:"var(--red)"}}>{INR(t.expenses)}</td>
-                        <td style={{padding:"10px 14px",color:"var(--txt2)",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:11}}>{expSummary||"—"}</td>
-                        <td style={{padding:"10px 14px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
-                        <td style={{padding:"10px 14px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
-                        <td style={{padding:"10px 14px",color:"var(--blue)"}}>{INR(e.cashPosition?.cashInHand)}</td>
-                        {isMgr&&(
-                          <td style={{padding:"8px 14px"}} onClick={ev=>ev.stopPropagation()}>
-                            <div style={{display:"flex",gap:6}}>
-                              <button className="ic-btn ic-btn-blue" title="Edit" onClick={()=>setEditE(e)}><Ico d={I.edit} s={13} col="var(--blue)"/></button>
-                              <button className="ic-btn ic-btn-red" title="Delete" onClick={()=>setDelE(e)}><Ico d={I.trash} s={13} col="var(--red)"/></button>
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+      <div class="chart-bars" id="chart-bars">
+        ${[25,50,75,100].map(p=>`<div class="chart-grid-line" style="bottom:${p}%;"></div>`).join('')}
+        ${chart14.map((e,i)=>{
+          const t=totals(e);
+          const sh=(t.sales/maxS)*100;
+          const eh=(t.expenses/maxS)*100;
+          const day=DAYS[new Date(e.date+'T00:00:00').getDay()];
+          return `<div class="chart-bar-group">
+            <div class="chart-tooltip">
+              <div style="color:#94a3b8;margin-bottom:3px;">${e.date}</div>
+              <div style="color:var(--green)">Sales: ${INR(t.sales)}</div>
+              <div style="color:var(--red)">Exp: ${INR(t.expenses)}</div>
             </div>
-          </div>
-        )}
+            <div class="chart-bars-inner">
+              <div class="bar-sales" style="height:${sh}%"></div>
+              <div class="bar-exp" style="height:${eh}%"></div>
+            </div>
+            <div class="chart-label">${day[0]}</div>
+          </div>`;
+        }).join('')}
       </div>
-    </>
-  );
+    </div>
+
+    <div class="section-card" style="animation-delay:170ms">
+      <div class="section-title">Today's Sales Breakdown</div>
+      ${pbRows.map(([label,val,col])=>{
+        const pct=td.sales>0?(val/td.sales)*100:0;
+        return `<div style="margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px;">
+            <span style="color:var(--muted)">${label}</span>
+            <span style="color:#fff;font-weight:700">${INR(val)}</span>
+          </div>
+          <div class="prog-bar-bg"><div class="prog-bar-fill" style="width:${pct}%;background:${col};box-shadow:0 0 8px ${col}80;"></div></div>
+          <div style="font-size:10px;color:var(--muted);text-align:right;margin-top:3px;">${pct.toFixed(1)}%</div>
+        </div>`;
+      }).join('')}
+      <hr class="divider" style="margin:16px 0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--muted);">Total Gross Sales</span>
+        <span style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff;">${INR(td.sales)}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Table -->
+  <div class="section-card" style="padding:0;animation-delay:220ms;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+      <div class="section-title" style="margin-bottom:0;">Recent 7 Days</div>
+      <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">All in ₹</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Date</th><th>Day</th><th>Gross Sales</th>
+          <th>Expenses</th><th>Wastage</th><th>Net Profit</th><th>Cash in Hand</th>
+        </tr></thead>
+        <tbody>
+          ${DB.slice(-7).reverse().map(e=>{
+            const t=totals(e);
+            const day=DAYS[new Date(e.date+'T00:00:00').getDay()];
+            return `<tr>
+              <td class="td-white">${e.date}</td>
+              <td>${day}</td>
+              <td class="td-green">${INR(t.sales)}</td>
+              <td class="td-red">${INR(t.expenses)}</td>
+              <td class="td-amber">${INR(t.wastage)}</td>
+              <td class="${t.profit>=0?'td-profit-pos':'td-profit-neg'}">${INR(t.profit)}</td>
+              <td class="td-blue">${INR(e.cashPosition?.cashInHand)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  `;
+
+  // Responsive 2-col
+  const col2=out.querySelector('.dash-2col');
+  const check=()=>col2.style.gridTemplateColumns=window.innerWidth<720?'1fr':'1fr 320px';
+  check(); window.addEventListener('resize',check);
 }
 
-/* ── MONTHLY REPORT ──────────────────────────── */
-function Monthly({entries,onViewDate,user}){
-  const now=new Date();
-  const [yr,setYr]=useState(now.getFullYear());
-  const [mo,setMo]=useState(now.getMonth());
-  const [pdfBusy,setPdfBusy]=useState(false);
-  const isMgr=user.role==="manager";
-  const [editE,setEditE]=useState(null);
+// ═══════════════════════════════════════════════════════════
+// DAILY ENTRY VIEW
+// ═══════════════════════════════════════════════════════════
+function renderEntry(out){
+  const canEdit=currentUser.role==='manager';
+  const dis=canEdit?'':'disabled';
 
-  const days=new Date(yr,mo+1,0).getDate();
-  const mEntries=useMemo(()=>Array.from({length:days},(_,i)=>{
-    const ds=`${yr}-${pad(mo+1)}-${pad(i+1)}`;
-    return entries.find(e=>e.date===ds)||null;
-  }),[entries,yr,mo,days]);
+  out.innerHTML=`
+  <div class="page-header">
+    <div class="page-title">Daily Entry</div>
+    <div class="page-sub">Record operational data for CK's Bakery</div>
+  </div>
 
-  const mTot=useMemo(()=>mEntries.reduce((a,e)=>{
-    if(!e)return a;const t=totals(e);
-    return{sales:a.sales+t.sales,exp:a.exp+t.expenses,waste:a.waste+t.wastage,profit:a.profit+t.profit,po:a.po+t.po,cash:a.cash+(e.cashPosition?.cashInHand||0)};
-  },{sales:0,exp:0,waste:0,profit:0,po:0,cash:0}),[mEntries]);
+  ${!canEdit?`<div class="alert-owner" id="owner-alert">
+    ${svg(SVGS.lock)} <strong>View-Only Access</strong> — Logged in as Owner. Data entry is restricted to the Store Manager.
+  </div>`:''}
 
-  const wPct=mTot.sales>0?(mTot.waste/mTot.sales)*100:0;
-  const prevMo=()=>{if(mo===0){setMo(11);setYr(y=>y-1);}else setMo(m=>m-1);};
-  const nextMo=()=>{if(mo===11){setMo(0);setYr(y=>y+1);}else setMo(m=>m+1);};
+  <div id="entry-success" class="alert-success" style="display:none;">
+    ${svg(SVGS.check)} <span id="entry-success-msg"></span>
+  </div>
 
-  const downloadPDF=async()=>{
-    setPdfBusy(true);
-    try{
-      // load jsPDF
-      if(!window.jspdf){
-        await new Promise((res,rej)=>{
-          const s=document.createElement("script");
-          s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-          s.onload=res;s.onerror=rej;document.head.appendChild(s);
-        });
-      }
-      if(!window.jspdf?.jsPDF){setPdfBusy(false);alert("jsPDF failed to load.");return;}
-      await new Promise((res,rej)=>{
-        const s=document.createElement("script");
-        s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js";
-        s.onload=res;s.onerror=rej;document.head.appendChild(s);
-      });
-      const {jsPDF}=window.jspdf;
-      const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
-      const W=297;
-      // Header bg
-      doc.setFillColor(239,246,255);doc.rect(0,0,W,42,"F");
-      doc.setDrawColor(37,99,235);doc.setLineWidth(.5);doc.line(0,42,W,42);
-      // Logo area
-      doc.setFillColor(37,99,235);doc.roundedRect(10,8,26,26,3,3,"F");
-      doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont("helvetica","bold");doc.text("SE",23,24,{align:"center"});
-      // Title
-      doc.setTextColor(30,41,59);doc.setFontSize(16);doc.setFont("helvetica","bold");
-      doc.text("SKANDAN ENTERPRISE",44,16);
-      doc.setFontSize(9);doc.setTextColor(100,116,139);doc.setFont("helvetica","normal");
-      doc.text("CK's Bakery Franchise · Operations Report",44,23);
-      doc.setFontSize(12);doc.setFont("helvetica","bold");doc.setTextColor(37,99,235);
-      doc.text(`${MN[mo].toUpperCase()} ${yr}`,44,31);
-      // KPIs
-      const kpis=[
-        {l:"Total Sales",v:INR(mTot.sales),c:[5,150,105]},
-        {l:"Total Expenses",v:INR(mTot.exp),c:[220,38,38]},
-        {l:"Total POs",v:INR(mTot.po),c:[37,99,235]},
-        {l:"Net Profit",v:INR(mTot.profit),c:mTot.profit>=0?[5,150,105]:[220,38,38]},
-        {l:"Wastage %",v:PCT(wPct),c:[217,119,6]},
-      ];
-      kpis.forEach((k,i)=>{
-        const x=10+i*57,y=46;
-        doc.setFillColor(248,250,252);doc.roundedRect(x,y,54,18,2,2,"F");
-        doc.setDrawColor(...k.c);doc.setLineWidth(.4);doc.line(x,y,x,y+18);
-        doc.setTextColor(...k.c);doc.setFontSize(14);doc.setFont("helvetica","bold");
-        doc.text(k.v,x+28,y+11,{align:"center"});
-        doc.setTextColor(100,116,139);doc.setFontSize(6.5);doc.setFont("helvetica","normal");
-        doc.text(k.l.toUpperCase(),x+28,y+16,{align:"center"});
-      });
-      // Table
-      const head=[["#","Date","Day","Gross Sales","Cash","Card/UPI","Swiggy","Expenses","Expense Remarks","PO","Wastage","Net Profit","Cash EOD"]];
-      const rows=mEntries.map((e,i)=>{
-        const ds=`${pad(i+1)} ${MNS[mo]}`,dn=DN[new Date(yr,mo,i+1).getDay()];
-        if(!e)return[String(i+1),ds,dn,"—","—","—","—","—","—","—","—","—","—"];
-        const t=totals(e);
-        const remarks=(e.expenses||[]).filter(x=>x.item).map(x=>x.remark?`${x.item}: ${x.remark}`:x.item).join("; ")||"—";
-        return[String(i+1),ds,dn,INR(t.sales),INR(e.sales?.cash),INR(e.sales?.card),INR(e.sales?.swiggy),INR(t.expenses),remarks,INR(t.po),INR(t.wastage),INR(t.profit),INR(e.cashPosition?.cashInHand)];
-      });
-      rows.push(["","TOTAL","",INR(mTot.sales),"","","",INR(mTot.exp),"",INR(mTot.po),`${INR(mTot.waste)} (${PCT(wPct)})`,INR(mTot.profit),"─"]);
-      doc.autoTable({
-        startY:68,head,body:rows,theme:"grid",
-        styles:{fontSize:6.2,cellPadding:1.8,textColor:[30,41,59],fillColor:[255,255,255],lineColor:[226,232,240],lineWidth:.2},
-        headStyles:{fillColor:[30,41,59],textColor:[255,255,255],fontStyle:"bold",fontSize:6.5},
-        alternateRowStyles:{fillColor:[248,250,252]},
-        columnStyles:{0:{cellWidth:6},1:{cellWidth:16},2:{cellWidth:9},8:{cellWidth:40},11:{cellWidth:18}},
-        didParseCell:d=>{
-          if(d.row.index===rows.length-1){d.cell.styles.fillColor=[239,246,255];d.cell.styles.fontStyle="bold";d.cell.styles.textColor=[5,150,105];}
-          if(d.section==="body"&&d.column.index===11&&d.row.index<rows.length-1){
-            const v=d.cell.raw;if(v&&v!=="—"){const n=Number(v.replace(/[₹,]/g,""));d.cell.styles.textColor=n>=0?[5,150,105]:[220,38,38];}
-          }
-        },
-      });
-      // Footer
-      const finalY=doc.lastAutoTable.finalY+6;
-      doc.setFontSize(7);doc.setTextColor(148,163,184);doc.setFont("helvetica","normal");
-      doc.text(`Generated: ${new Date().toLocaleString("en-IN")} · Skandan Enterprise · Confidential`,W/2,finalY,{align:"center"});
-      doc.save(`Skandan_${MN[mo]}_${yr}.pdf`);
-    }catch(ex){alert("PDF error: "+ex.message);}
-    setPdfBusy(false);
+  <!-- Date -->
+  <div class="section-card accent-blue">
+    <div class="section-title">📅 Date</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" class="grid2">
+      <div class="field"><label>Entry Date</label>
+        <input class="ifield" type="date" id="e-date" value="${todayStr()}" max="${todayStr()}" ${dis}>
+      </div>
+      <div style="display:flex;align-items:flex-end;">
+        <div style="padding:12px 16px;border-radius:10px;background:rgba(16,217,160,.06);border:1px solid rgba(16,217,160,.14);width:100%;">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Gross Sales Preview</div>
+          <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--green);" id="sales-preview">₹0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sales -->
+  <div class="section-card accent-green">
+    <div class="section-title">💰 Daily Gross Sales</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;" class="grid3">
+      <div class="field"><label>Cash Sales (₹)</label><input class="ifield e-sale" type="number" min="0" placeholder="0" id="e-cash" ${dis}></div>
+      <div class="field"><label>Card / UPI (₹)</label><input class="ifield e-sale" type="number" min="0" placeholder="0" id="e-card" ${dis}></div>
+      <div class="field"><label>Swiggy / Zomato (₹)</label><input class="ifield e-sale" type="number" min="0" placeholder="0" id="e-swiggy" ${dis}></div>
+    </div>
+  </div>
+
+  <!-- Expenses -->
+  <div class="section-card accent-red">
+    <div class="section-title">🧾 Expenses</div>
+    <div id="exp-rows"></div>
+    ${canEdit?`<button class="btn-add-row" id="add-exp">${svg(SVGS.plus,13)} Add Expense Row</button>`:''}
+    <div style="margin-top:8px;font-size:12px;color:var(--red);" id="exp-total"></div>
+  </div>
+
+  <!-- POs -->
+  <div class="section-card accent-purple">
+    <div class="section-title">📦 Purchase Orders</div>
+    <div id="po-rows"></div>
+    ${canEdit?`<button class="btn-add-row" id="add-po">${svg(SVGS.plus,13)} Add Purchase Order</button>`:''}
+  </div>
+
+  <!-- Stock -->
+  <div class="section-card accent-amber">
+    <div class="section-title">📊 Opening & Closing Stock</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" class="grid2">
+      <div class="field"><label>Opening Stock Value (₹)</label><input class="ifield" type="number" min="0" placeholder="0.00" id="e-open" ${dis}></div>
+      <div class="field"><label>Closing Stock Value (₹)</label><input class="ifield" type="number" min="0" placeholder="0.00" id="e-close" ${dis}></div>
+    </div>
+    <div style="margin-top:9px;font-size:12px;" id="stock-diff"></div>
+  </div>
+
+  <!-- Wastage -->
+  <div class="section-card accent-amber">
+    <div class="section-title">⚠️ Wastage Details</div>
+    <div id="waste-rows"></div>
+    ${canEdit?`<button class="btn-add-row" id="add-waste">${svg(SVGS.plus,13)} Add Wastage Item</button>`:''}
+  </div>
+
+  <!-- Cash Position -->
+  <div class="section-card accent-blue">
+    <div class="section-title">💵 End-of-Day Cash Position</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" class="grid2">
+      <div class="field"><label>Cash in Hand (₹)</label><input class="ifield" type="number" min="0" placeholder="0.00" id="e-cin" ${dis}></div>
+      <div class="field"><label>Cash in Bank / Account (₹)</label><input class="ifield" type="number" min="0" placeholder="0.00" id="e-cbank" ${dis}></div>
+    </div>
+  </div>
+
+  ${canEdit
+    ?`<button class="btn-primary" id="save-entry" style="width:100%;padding:14px;font-size:15px;">Save Daily Entry</button>`
+    :`<div style="text-align:center;padding:13px;border-radius:12px;background:rgba(248,167,62,.05);border:1px solid rgba(248,167,62,.14);color:var(--muted);font-size:13px;">
+        ${svg(SVGS.lock)} Entry saving is restricted to the Store Manager
+      </div>`
+  }
+  `;
+
+  // Responsive grids
+  const fix=()=>{
+    const is1col=window.innerWidth<580;
+    out.querySelectorAll('.grid2').forEach(g=>g.style.gridTemplateColumns=is1col?'1fr':'1fr 1fr');
+    out.querySelectorAll('.grid3').forEach(g=>g.style.gridTemplateColumns=is1col?'1fr':'repeat(3,1fr)');
   };
+  fix(); window.addEventListener('resize',fix);
 
-  return(
-    <>
-      {editE&&<EditModal entry={editE} entries={entries} reloadEntries={()=>{}} user={user} onClose={()=>setEditE(null)}/>}
-      <div style={{display:"flex",flexDirection:"column",gap:20}}>
-        <div className="fade-up" style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-          <div>
-            <h2 className="syne" style={{fontSize:22,fontWeight:800}}>Monthly Report</h2>
-            <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>{MN[mo]} {yr} · {days} days · click any row to view day report</p>
-          </div>
-          <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            <button className="btn btn-ghost btn-sm" onClick={prevMo}>←</button>
-            <span style={{padding:"6px 16px",borderRadius:8,border:"1.5px solid var(--border)",fontSize:13,fontWeight:700,background:"var(--card)"}}>{MNS[mo]} {yr}</span>
-            <button className="btn btn-ghost btn-sm" onClick={nextMo}>→</button>
-            <button className="btn btn-sm" onClick={downloadPDF} disabled={pdfBusy}
-              style={{background:"linear-gradient(135deg,var(--red),var(--amber))",color:"#fff",border:"none",boxShadow:"0 2px 8px rgba(220,38,38,.2)"}}>
-              <Ico d={I.pdf} s={13} col="#fff"/>
-              {pdfBusy?"Generating…":"Download PDF"}
-            </button>
-          </div>
+  // Dynamic row state
+  const expRows=[{item:'',amount:'',category:'Raw Materials'}];
+  const poRows=[{vendor:'',invoice:'',paid:'',pending:''}];
+  const wasteRows=[{item:'',quantity:'',cost:''}];
+
+  function renderExpRows(){
+    const c=$('exp-rows'); c.innerHTML='';
+    expRows.forEach((r,i)=>{
+      const wrap=document.createElement('div');
+      wrap.style.cssText='display:grid;grid-template-columns:3fr 2fr 2fr auto;gap:10px;margin-bottom:10px;align-items:end;';
+      wrap.innerHTML=`
+        <div class="field">${i===0?'<label>Item Name</label>':''}<input class="ifield" placeholder="e.g. Flour" value="${r.item||''}" ${dis}></div>
+        <div class="field">${i===0?'<label>Amount (₹)</label>':''}<input class="ifield" type="number" min="0" placeholder="0" value="${r.amount||''}" ${dis}></div>
+        <div class="field">${i===0?'<label>Category</label>':''}
+          <select class="ifield" ${dis}>
+            ${['Raw Materials','Utilities','Salary','Miscellaneous'].map(c=>`<option${r.category===c?' selected':''}>${c}</option>`).join('')}
+          </select>
         </div>
-
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:12}}>
-          <KCard label="Total Sales"    value={INR(mTot.sales)}  icon={I.trend}  col="green"  idx={0}/>
-          <KCard label="Total Expenses" value={INR(mTot.exp)}    icon={I.warn}   col="red"    idx={1}/>
-          <KCard label="Total POs"      value={INR(mTot.po)}     icon={I.box}    col="blue"   idx={2}/>
-          <KCard label="Cash EOD"       value={INR(mTot.cash)}   icon={I.rupee}  col="blue"   idx={3}/>
-          <KCard label="Net Profit"     value={INR(mTot.profit)} icon={I.spark}  col={mTot.profit>=0?"green":"red"} idx={4}/>
-          <KCard label="Wastage %"      value={PCT(wPct)}        icon={I.trash}  col="amber"  idx={5} sub="of sales"/>
-        </div>
-
-        <div style={{padding:"12px 18px",borderRadius:10,background:"var(--amber-bg)",border:"1px solid var(--amber-border)"}}>
-          <p style={{fontSize:11,fontWeight:700,color:"var(--amber)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:4}}>📐 Wastage % Formula</p>
-          <p style={{fontSize:12,color:"var(--txt2)"}}>Wastage % = (Total Wastage Cost ÷ Gross Sales) × 100 &nbsp;=&nbsp; ({INR(mTot.waste)} ÷ {INR(mTot.sales)}) × 100 = <strong style={{color:"var(--amber)"}}>{PCT(wPct)}</strong></p>
-        </div>
-
-        <div className="card" style={{overflow:"hidden"}}>
-          <div style={{overflowX:"auto"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-              <thead><tr style={{background:"var(--bg2)"}}>
-                {["Day","Date","Gross Sales","Cash","Card/UPI","Swiggy","Expenses","Expense Items & Remarks","PO","Wastage","Net Profit","Cash EOD",isMgr?"Actions":""].filter(h=>h!=="").map(h=>(
-                  <th key={h} style={{padding:"10px 13px",textAlign:"left"}}>{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {mEntries.map((e,i)=>{
-                  const d=new Date(yr,mo,i+1),dn=DN[d.getDay()],t=e?totals(e):null,isSun=d.getDay()===0;
-                  const expRemarks=e?(e.expenses||[]).filter(x=>x.item).map(x=>x.remark?x.item+": "+x.remark:x.item).join(" · ")||"—":"";
-                  return(
-                    <tr key={i} className="tr-hover" style={{borderTop:"1px solid var(--border)",background:isSun?"rgba(217,119,6,.04)":"transparent",cursor:e?"pointer":"default"}}
-                      onClick={()=>e&&onViewDate(e)}>
-                      <td style={{padding:"9px 13px",fontWeight:700,color:isSun?"var(--amber)":"var(--blue)",fontSize:11}}>{dn}</td>
-                      <td style={{padding:"9px 13px",color:"var(--txt2)",whiteSpace:"nowrap"}}>{pad(i+1)} {MNS[mo]}</td>
-                      {e&&t?(<>
-                        <td style={{padding:"9px 13px",fontWeight:700,color:"var(--green)"}}>{INR(t.sales)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--txt2)"}}>{INR(e.sales&&e.sales.cash)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--txt2)"}}>{INR(e.sales&&e.sales.card)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--txt2)"}}>{INR(e.sales&&e.sales.swiggy)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--red)",fontWeight:600}}>{INR(t.expenses)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--txt2)",maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:11}}>{expRemarks}</td>
-                        <td style={{padding:"9px 13px",color:"var(--purple)"}}>{INR(t.po)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--amber)"}}>{INR(t.wastage)}</td>
-                        <td style={{padding:"9px 13px",fontWeight:700,color:t.profit>=0?"var(--green)":"var(--red)"}}>{INR(t.profit)}</td>
-                        <td style={{padding:"9px 13px",color:"var(--blue)"}}>{INR(e.cashPosition&&e.cashPosition.cashInHand)}</td>
-                        {isMgr&&(
-                          <td style={{padding:"7px 13px"}} onClick={function(ev){ev.stopPropagation();}}>
-                            <button className="ic-btn ic-btn-blue" title="Edit" onClick={function(){setEditE(e);}}>
-                              <Ico d={I.edit} s={12} col="var(--blue)"/>
-                            </button>
-                          </td>
-                        )}
-                      </>):(
-                        <td colSpan={isMgr?11:10} style={{padding:"9px 13px",color:"var(--muted)",fontStyle:"italic",fontSize:11}}>— no entry —</td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr style={{borderTop:"2px solid var(--green-border)",background:"var(--green-bg)"}}>
-                  <td colSpan={2} style={{padding:"11px 13px",fontWeight:800,color:"var(--green)",fontSize:11,textTransform:"uppercase",letterSpacing:".06em"}}>Monthly Total</td>
-                  <td style={{padding:"11px 13px",fontWeight:800,color:"var(--green)"}}>{INR(mTot.sales)}</td>
-                  <td colSpan={3}/>
-                  <td style={{padding:"11px 13px",fontWeight:800,color:"var(--red)"}}>{INR(mTot.exp)}</td>
-                  <td/>
-                  <td style={{padding:"11px 13px",fontWeight:800,color:"var(--purple)"}}>{INR(mTot.po)}</td>
-                  <td style={{padding:"11px 13px",fontWeight:800,color:"var(--amber)"}}>{INR(mTot.waste)} ({PCT(wPct)})</td>
-                  <td style={{padding:"11px 13px",fontWeight:800,color:mTot.profit>=0?"var(--green)":"var(--red)"}}>{INR(mTot.profit)}</td>
-                  <td>{INR(mTot.cash)}</td>
-                  {isMgr&&<td/>}
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-/* ── APP ─────────────────────────────────────── */
-function App(){
-  const [authOk,setAuthOk]=useState(false);
-  const [user,setUser]=useState(null);
-  const [entries,setEntries]=useState([]);
-  const [loading,setLoading]=useState(false);
-  const [view,setView]=useState("dashboard");
-  const [mob,setMob]=useState(false);
-  const [dayDetail,setDayDetail]=useState(null);
-  const [editFromDetail,setEditFromDetail]=useState(null);
-
-  useEffect(function(){
-    var iv=setInterval(function(){
-      if(!window.__auth||!window.__firebase)return;
-      clearInterval(iv);
-      FB().onAuthStateChanged(getAu(),function(fbUser){
-        if(fbUser){
-          var role=fbUser.email.toLowerCase().indexOf("owner")>=0?"owner":"manager";
-          var name=fbUser.displayName||fbUser.email.split("@")[0];
-          setUser({uid:fbUser.uid,email:fbUser.email,role:role,name:name,avatar:name.slice(0,2).toUpperCase()});
-        }else{
-          setUser(null);
-        }
-        setAuthOk(true);
-      });
-    },100);
-    return function(){clearInterval(iv);};
-  },[]);
-
-  var loadEntries=useCallback(function(){
-    if(!window.__db||!window.__firebase)return Promise.resolve();
-    setLoading(true);
-    var col=FB().collection(getDB(),"entries");
-    var q=FB().query(col,FB().orderBy("date","asc"));
-    return FB().getDocs(q).then(function(snap){
-      setEntries(snap.docs.map(function(d){return d.data();}));
-      setLoading(false);
-    }).catch(function(ex){
-      console.error(ex);
-      setLoading(false);
+        <div style="padding-bottom:2px;">${canEdit&&expRows.length>1?`<button class="btn-del" data-i="${i}">${svg(SVGS.trash,13)}</button>`:''}</div>
+      `;
+      const [inp1,inp2,sel]=wrap.querySelectorAll('.ifield');
+      inp1.addEventListener('input',e=>{expRows[i].item=e.target.value;updateExpTotal();});
+      inp2.addEventListener('input',e=>{expRows[i].amount=e.target.value;updateExpTotal();});
+      sel.addEventListener('change',e=>{expRows[i].category=e.target.value;});
+      wrap.querySelector('.btn-del')?.addEventListener('click',()=>{expRows.splice(i,1);renderExpRows();});
+      c.appendChild(wrap);
     });
-  },[]);
-
-  useEffect(function(){
-    if(user)loadEntries();
-    else setEntries([]);
-  },[user]);
-
-  function logout(){
-    FB().signOut(getAu());
-    setUser(null);
-    setEntries([]);
   }
 
-  function viewDate(entry){setDayDetail(entry);}
-  function openEditFromDetail(entry){setDayDetail(null);setEditFromDetail(entry);}
+  function updateExpTotal(){
+    const tot=expRows.reduce((s,r)=>s+(+r.amount||0),0);
+    $('exp-total').textContent=tot>0?`Total Expenses: ${INR(tot)}`:'';
+  }
 
-  if(!authOk)return React.createElement(React.Fragment,null,React.createElement("style",null,STYLES),React.createElement(Loader,{msg:"Connecting to Firebase..."}));
-  if(!user)return React.createElement(React.Fragment,null,React.createElement("style",null,STYLES),React.createElement(AuthScreen,null));
+  function updateSalesPreview(){
+    const v=(+($('e-cash')?.value||0))+(+($('e-card')?.value||0))+(+($('e-swiggy')?.value||0));
+    $('sales-preview').textContent=INR(v);
+  }
 
-  var vtitle={dashboard:"Operations Overview",entry:"Daily Entry",entries:"All Entries",monthly:"Monthly Report"};
+  function renderPORows(){
+    const c=$('po-rows'); c.innerHTML='';
+    poRows.forEach((r,i)=>{
+      const wrap=document.createElement('div');
+      wrap.style.cssText='display:grid;grid-template-columns:2fr 2fr 1.5fr 1.5fr auto;gap:10px;margin-bottom:10px;align-items:end;';
+      if(window.innerWidth<640) wrap.style.gridTemplateColumns='1fr 1fr';
+      wrap.innerHTML=`
+        <div class="field">${i===0?'<label>Vendor</label>':''}<input class="ifield" placeholder="Vendor name" value="${r.vendor||''}" ${dis}></div>
+        <div class="field">${i===0?'<label>Invoice No.</label>':''}<input class="ifield" placeholder="INV-001" value="${r.invoice||''}" ${dis}></div>
+        <div class="field">${i===0?'<label>Paid (₹)</label>':''}<input class="ifield" type="number" min="0" placeholder="0" value="${r.paid||''}" ${dis}></div>
+        <div class="field">${i===0?'<label>Pending (₹)</label>':''}<input class="ifield" type="number" min="0" placeholder="0" value="${r.pending||''}" ${dis}></div>
+        <div style="padding-bottom:2px;">${canEdit&&poRows.length>1?`<button class="btn-del" data-i="${i}">${svg(SVGS.trash,13)}</button>`:''}</div>
+      `;
+      const [v,iv,pd,pe]=wrap.querySelectorAll('.ifield');
+      v.addEventListener('input',e=>poRows[i].vendor=e.target.value);
+      iv.addEventListener('input',e=>poRows[i].invoice=e.target.value);
+      pd.addEventListener('input',e=>poRows[i].paid=e.target.value);
+      pe.addEventListener('input',e=>poRows[i].pending=e.target.value);
+      wrap.querySelector('.btn-del')?.addEventListener('click',()=>{poRows.splice(i,1);renderPORows();});
+      c.appendChild(wrap);
+    });
+  }
 
-  return (
-    <>
-      <style>{STYLES}{`
-        .mobile-btn{display:none!important;}
-        @media(max-width:768px){
-          .app-side{display:none!important;}
-          .app-mob-side{display:flex!important;}
-          .mobile-btn{display:flex!important;}
-        }
-      `}</style>
+  function renderWasteRows(){
+    const c=$('waste-rows'); c.innerHTML='';
+    wasteRows.forEach((r,i)=>{
+      const wrap=document.createElement('div');
+      wrap.style.cssText='display:grid;grid-template-columns:3fr 1.5fr 1.5fr auto;gap:10px;margin-bottom:10px;align-items:end;';
+      wrap.innerHTML=`
+        <div class="field">${i===0?'<label>Item Name</label>':''}<input class="ifield" placeholder="e.g. Bread Loaves" value="${r.item||''}" ${dis}></div>
+        <div class="field">${i===0?'<label>Qty</label>':''}<input class="ifield" type="number" min="0" placeholder="0" value="${r.quantity||''}" ${dis}></div>
+        <div class="field">${i===0?'<label>Cost Value (₹)</label>':''}<input class="ifield" type="number" min="0" placeholder="0" value="${r.cost||''}" ${dis}></div>
+        <div style="padding-bottom:2px;">${canEdit&&wasteRows.length>1?`<button class="btn-del" data-i="${i}">${svg(SVGS.trash,13)}</button>`:''}</div>
+      `;
+      const [it,qt,ct]=wrap.querySelectorAll('.ifield');
+      it.addEventListener('input',e=>wasteRows[i].item=e.target.value);
+      qt.addEventListener('input',e=>wasteRows[i].quantity=e.target.value);
+      ct.addEventListener('input',e=>wasteRows[i].cost=e.target.value);
+      wrap.querySelector('.btn-del')?.addEventListener('click',()=>{wasteRows.splice(i,1);renderWasteRows();});
+      c.appendChild(wrap);
+    });
+  }
 
-      {dayDetail&&(
-        <DayDetail
-          entry={dayDetail}
-          onClose={function(){setDayDetail(null);}}
-          onEdit={function(){openEditFromDetail(dayDetail);}}
-          isManager={user.role==="manager"}
-        />
-      )}
+  renderExpRows(); renderPORows(); renderWasteRows();
+  out.querySelectorAll('.e-sale').forEach(inp=>inp.addEventListener('input',updateSalesPreview));
 
-      {editFromDetail&&(
-        <EditModal
-          entry={editFromDetail}
-          entries={entries}
-          reloadEntries={loadEntries}
-          user={user}
-          onClose={function(){setEditFromDetail(null);}}
-        />
-      )}
+  // Stock diff
+  [$('e-open'),$('e-close')].forEach(inp=>inp?.addEventListener('input',()=>{
+    const o=+$('e-open').value||0, c=+$('e-close').value||0;
+    if(o&&c) $('stock-diff').innerHTML=`<span style="color:${c-o>=0?'var(--green)':'var(--amber)'}">Stock Movement: <strong>${INR(c-o)}</strong> (${c-o>=0?'Gain':'Loss'})</span>`;
+  }));
 
-      <div style={{display:"flex",height:"100vh",overflow:"hidden",background:"var(--bg)"}}>
-        <div className="app-side">
-          <Sidebar active={view} setActive={setView} user={user} onLogout={logout}/>
-        </div>
+  if(canEdit){
+    $('add-exp')?.addEventListener('click',()=>{expRows.push({item:'',amount:'',category:'Raw Materials'});renderExpRows();});
+    $('add-po')?.addEventListener('click',()=>{poRows.push({vendor:'',invoice:'',paid:'',pending:''});renderPORows();});
+    $('add-waste')?.addEventListener('click',()=>{wasteRows.push({item:'',quantity:'',cost:''});renderWasteRows();});
 
-        {mob&&(
-          <div style={{position:"fixed",inset:0,zIndex:300,display:"flex"}} className="app-mob-side">
-            <div style={{flex:1,background:"rgba(15,23,42,.35)"}} onClick={function(){setMob(false);}}/>
-            <div style={{width:220}}>
-              <Sidebar active={view} setActive={function(v){setView(v);setMob(false);}} user={user} onLogout={logout}/>
-            </div>
-          </div>
-        )}
-
-        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-          <header style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 24px",borderBottom:"1px solid var(--border)",background:"var(--surface)",boxShadow:"0 1px 0 var(--border)"}}>
-            <div style={{display:"flex",alignItems:"center",gap:12}}>
-              <button onClick={function(){setMob(true);}} className="ic-btn mobile-btn" style={{flexShrink:0}}>
-                <Ico d={I.menu} s={16}/>
-              </button>
-              <div>
-                <h1 style={{fontSize:15,fontWeight:700}}>{vtitle[view]}</h1>
-                <p style={{fontSize:11,color:"var(--muted)",marginTop:1}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p>
-              </div>
-            </div>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              {loading&&(
-                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"var(--muted)"}}>
-                  <div style={{width:13,height:13,border:"2px solid var(--border)",borderTop:"2px solid var(--blue)",borderRadius:"50%"}} className="spinner-el"/>
-                  Syncing...
-                </div>
-              )}
-              <span className={"tag "+(user.role==="owner"?"tag-amber":"tag-blue")}>
-                {user.role==="owner"?"👁 Owner":"✏️ Manager"} · {user.name}
-              </span>
-            </div>
-          </header>
-
-          <main style={{flex:1,overflowY:"auto",padding:"24px 24px 40px",background:"var(--bg)"}}>
-            <div style={{maxWidth:1120,margin:"0 auto"}}>
-              {view==="dashboard"&&<Dashboard entries={entries} onViewDate={viewDate}/>}
-              {view==="entry"&&<EntryForm entries={entries} reloadEntries={loadEntries} user={user}/>}
-              {view==="entries"&&<AllEntries entries={entries} reloadEntries={loadEntries} user={user} onViewDate={viewDate}/>}
-              {view==="monthly"&&<Monthly entries={entries} onViewDate={viewDate} user={user} reloadEntries={loadEntries}/>}
-            </div>
-          </main>
-        </div>
-      </div>
-    </>
-  );
+    $('save-entry')?.addEventListener('click',()=>{
+      const date=$('e-date').value;
+      if(!date){alert('Please select a date.');return;}
+      const entry={
+        id:`entry-${Date.now()}`, date,
+        sales:{cash:+$('e-cash').value||0,card:+$('e-card').value||0,swiggy:+$('e-swiggy').value||0},
+        expenses:expRows.filter(r=>r.item).map(r=>({...r,amount:+r.amount||0})),
+        purchaseOrders:poRows.filter(r=>r.vendor).map(r=>({...r,paid:+r.paid||0,pending:+r.pending||0})),
+        openingStock:+$('e-open').value||0,
+        closingStock:+$('e-close').value||0,
+        wastage:wasteRows.filter(r=>r.item).map(r=>({...r,quantity:+r.quantity||0,cost:+r.cost||0})),
+        cashPosition:{cashInHand:+$('e-cin').value||0,cashInBank:+$('e-cbank').value||0},
+      };
+      DB=[...DB.filter(e=>e.date!==date),entry].sort((a,b)=>a.date.localeCompare(b.date));
+      const suc=$('entry-success');
+      $('entry-success-msg').textContent=`Entry for ${date} saved successfully!`;
+      suc.style.display='flex';
+      suc.scrollIntoView({behavior:'smooth',block:'center'});
+      setTimeout(()=>suc.style.display='none',4000);
+    });
+  }
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App,null));
+// ═══════════════════════════════════════════════════════════
+// WEEKLY VIEW
+// ═══════════════════════════════════════════════════════════
+let weeklyOffset=0;
+function renderWeekly(out){
+  const getWeekDates=offset=>{
+    const now=new Date(); const day=now.getDay();
+    const mon=new Date(now); mon.setDate(now.getDate()-(day===0?6:day-1)+offset*7);
+    return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;});
+  };
+
+  const weekDates=getWeekDates(weeklyOffset);
+  const wEntries=weekDates.map(d=>DB.find(e=>e.date===d)||null);
+  const wTot=wEntries.reduce((a,e)=>{if(!e)return a;const t=totals(e);return{sales:a.sales+t.sales,exp:a.exp+t.expenses,waste:a.waste+t.wastage,profit:a.profit+t.profit,po:a.po+t.po};},{sales:0,exp:0,waste:0,profit:0,po:0});
+  const wPct=wTot.sales>0?(wTot.waste/wTot.sales)*100:0;
+  const WDAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  out.innerHTML=`
+  <div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div class="page-title">Weekly Summary</div>
+        <div class="page-sub">${weekDates[0]} → ${weekDates[6]}</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-ghost" id="w-prev">← Prev</button>
+        <button class="btn-ghost" id="w-cur" style="color:var(--blue);border-color:rgba(77,158,247,.35)">This Week</button>
+        <button class="btn-ghost" id="w-next">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    ${kpiCard('Total Sales',INR(wTot.sales),'This Week','trend','green',0)}
+    ${kpiCard('Total Expenses',INR(wTot.exp),'This Week','warn','red',50)}
+    ${kpiCard('Total POs',INR(wTot.po),'This Week','box','blue',100)}
+    ${kpiCard('Total Wastage',INR(wTot.waste)+` (${PCT(wPct)})`,'of sales','trash','amber',150)}
+    ${kpiCard('Net Profit',INR(wTot.profit),'This Week','star',wTot.profit>=0?'green':'red',200)}
+  </div>
+
+  <div class="section-card" style="padding:0;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);">
+      <div class="section-title" style="margin-bottom:0;">Mon → Sun Daily Breakdown</div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Day</th><th>Date</th><th>Gross Sales</th>
+          <th>Cash</th><th>Card/UPI</th><th>Swiggy/Zomato</th>
+          <th>Expenses</th><th>PO</th><th>Wastage</th><th>Net Profit</th>
+        </tr></thead>
+        <tbody>
+          ${weekDates.map((d,i)=>{
+            const e=wEntries[i]; const t=e?totals(e):null;
+            return `<tr>
+              <td style="font-weight:700;color:${i===6?'var(--amber)':'var(--blue)'}">${WDAYS[i]}</td>
+              <td style="color:var(--muted)">${d}</td>
+              ${e&&t
+                ?`<td class="td-green">${INR(t.sales)}</td>
+                  <td>${INR(e.sales?.cash)}</td>
+                  <td>${INR(e.sales?.card)}</td>
+                  <td>${INR(e.sales?.swiggy)}</td>
+                  <td class="td-red">${INR(t.expenses)}</td>
+                  <td class="td-purple">${INR(t.po)}</td>
+                  <td class="td-amber">${INR(t.wastage)}</td>
+                  <td class="${t.profit>=0?'td-profit-pos':'td-profit-neg'}">${INR(t.profit)}</td>`
+                :`<td colspan="8" style="color:rgba(100,116,139,.4);font-style:italic;">No entry recorded</td>`
+              }
+            </tr>`;
+          }).join('')}
+        </tbody>
+        <tfoot><tr>
+          <td colspan="2" style="color:var(--blue);text-transform:uppercase;font-size:10px;letter-spacing:.07em;">Week Total</td>
+          <td class="td-green">${INR(wTot.sales)}</td>
+          <td colspan="3"></td>
+          <td class="td-red">${INR(wTot.exp)}</td>
+          <td class="td-purple">${INR(wTot.po)}</td>
+          <td class="td-amber">${INR(wTot.waste)}<br><span style="font-size:10px;opacity:.75">${PCT(wPct)}</span></td>
+          <td class="${wTot.profit>=0?'td-profit-pos':'td-profit-neg'}">${INR(wTot.profit)}</td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>
+  `;
+
+  $('w-prev').addEventListener('click',()=>{weeklyOffset--;renderWeekly(out);});
+  $('w-next').addEventListener('click',()=>{weeklyOffset++;renderWeekly(out);});
+  $('w-cur').addEventListener('click',()=>{weeklyOffset=0;renderWeekly(out);});
+}
+
+// ═══════════════════════════════════════════════════════════
+// MONTHLY VIEW
+// ═══════════════════════════════════════════════════════════
+const now=new Date();
+let monthlyYr=now.getFullYear(), monthlyMo=now.getMonth();
+
+function renderMonthly(out){
+  const days=new Date(monthlyYr,monthlyMo+1,0).getDate();
+  const mEntries=Array.from({length:days},(_,i)=>{
+    const ds=`${monthlyYr}-${pad(monthlyMo+1)}-${pad(i+1)}`;
+    return DB.find(e=>e.date===ds)||null;
+  });
+  const mTot=mEntries.reduce((a,e)=>{
+    if(!e)return a; const t=totals(e);
+    return{sales:a.sales+t.sales,exp:a.exp+t.expenses,waste:a.waste+t.wastage,profit:a.profit+t.profit,po:a.po+t.po,cash:a.cash+(e.cashPosition?.cashInHand||0)};
+  },{sales:0,exp:0,waste:0,profit:0,po:0,cash:0});
+  const wPct=mTot.sales>0?(mTot.waste/mTot.sales)*100:0;
+
+  out.innerHTML=`
+  <div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div class="page-title">Monthly Report</div>
+        <div class="page-sub">${MONTHS[monthlyMo]} ${monthlyYr} · ${days} days</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn-ghost" id="m-prev">←</button>
+        <span style="padding:8px 16px;border-radius:9px;border:1px solid var(--border2);font-size:13px;font-weight:700;color:#fff;background:rgba(255,255,255,.04);">${MONTHS[monthlyMo]} ${monthlyYr}</span>
+        <button class="btn-ghost" id="m-next">→</button>
+        <button class="btn-pdf" id="m-pdf">${svg(SVGS.pdf,15)} Download PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    ${kpiCard('Total Sales',INR(mTot.sales),'This Month','trend','green',0)}
+    ${kpiCard('Total Expenses',INR(mTot.exp),'This Month','warn','red',40)}
+    ${kpiCard('Total POs',INR(mTot.po),'This Month','box','blue',80)}
+    ${kpiCard('Total Cash EOD',INR(mTot.cash),'This Month','cash','blue',120)}
+    ${kpiCard('Net Profit',INR(mTot.profit),'This Month','star',mTot.profit>=0?'green':'red',160)}
+    ${kpiCard('Wastage %',PCT(wPct),'of Gross Sales','trash','amber',200)}
+  </div>
+
+  <div class="formula-banner">
+    <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">📐 Wastage % Formula</div>
+    <div style="font-size:12px;color:var(--muted2);">
+      Wastage % = (Total Wastage Cost ÷ Total Gross Sales) × 100
+      <span style="margin-left:12px;color:#fff;font-weight:700;">= (${INR(mTot.waste)} ÷ ${INR(mTot.sales)}) × 100 = <span style="color:var(--amber)">${PCT(wPct)}</span></span>
+    </div>
+  </div>
+
+  <div class="section-card" style="padding:0;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);">
+      <div class="section-title" style="margin-bottom:0;">Day-by-Day Breakdown — ${MONTHS[monthlyMo]} ${monthlyYr}</div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Day</th><th>Date</th><th>Gross Sales</th>
+          <th>Cash</th><th>Card/UPI</th><th>Swiggy/Zomato</th>
+          <th>Expenses</th><th>PO</th><th>Wastage</th><th>Net Profit</th>
+        </tr></thead>
+        <tbody>
+          ${mEntries.map((e,i)=>{
+            const d=new Date(monthlyYr,monthlyMo,i+1);
+            const dn=DAYS[d.getDay()];
+            const isSun=d.getDay()===0;
+            const t=e?totals(e):null;
+            return `<tr style="${isSun?'background:rgba(248,167,62,.025)':''}">
+              <td style="font-weight:700;color:${isSun?'var(--amber)':'var(--blue)'}">${dn}</td>
+              <td style="color:var(--muted2)">${pad(i+1)} ${MONTHS[monthlyMo]}</td>
+              ${e&&t
+                ?`<td class="td-green">${INR(t.sales)}</td>
+                  <td>${INR(e.sales?.cash)}</td>
+                  <td>${INR(e.sales?.swiggy)}</td>
+                  <td>${INR(e.sales?.swiggy)}</td>
+                  <td class="td-red">${INR(t.expenses)}</td>
+                  <td class="td-purple">${INR(t.po)}</td>
+                  <td class="td-amber">${INR(t.wastage)}</td>
+                  <td class="${t.profit>=0?'td-profit-pos':'td-profit-neg'}">${INR(t.profit)}</td>`
+                :`<td colspan="8" style="color:rgba(100,116,139,.3);font-style:italic;font-size:11px;">—</td>`
+              }
+            </tr>`;
+          }).join('')}
+        </tbody>
+        <tfoot><tr>
+          <td colspan="2" style="color:var(--green);text-transform:uppercase;font-size:10px;letter-spacing:.07em;">Monthly Total</td>
+          <td class="td-green">${INR(mTot.sales)}</td>
+          <td colspan="3"></td>
+          <td class="td-red">${INR(mTot.exp)}</td>
+          <td class="td-purple">${INR(mTot.po)}</td>
+          <td class="td-amber">${INR(mTot.waste)}<br><span style="font-size:10px">${PCT(wPct)}</span></td>
+          <td class="${mTot.profit>=0?'td-profit-pos':'td-profit-neg'}">${INR(mTot.profit)}</td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>
+  `;
+
+  $('m-prev').addEventListener('click',()=>{
+    if(monthlyMo===0){monthlyMo=11;monthlyYr--;}else monthlyMo--;
+    renderMonthly(out);
+  });
+  $('m-next').addEventListener('click',()=>{
+    if(monthlyMo===11){monthlyMo=0;monthlyYr++;}else monthlyMo++;
+    renderMonthly(out);
+  });
+
+  $('m-pdf').addEventListener('click',()=>downloadPDF(mEntries,mTot,wPct));
+}
+
+// ═══════════════════════════════════════════════════════════
+// PDF DOWNLOAD
+// ═══════════════════════════════════════════════════════════
+function downloadPDF(mEntries,mTot,wPct){
+  if(typeof window.jspdf==='undefined'&&typeof jsPDF==='undefined'){
+    alert('PDF library not loaded. Please check your internet connection.');return;
+  }
+  const {jsPDF}=window.jspdf||{jsPDF:window.jsPDF};
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,H=210;
+
+  // Background
+  doc.setFillColor(7,9,15); doc.rect(0,0,W,H,'F');
+  doc.setFillColor(12,17,32); doc.rect(0,0,W,42,'F');
+  doc.setDrawColor(77,158,247); doc.setLineWidth(.3); doc.line(0,42,W,42);
+
+  // Header
+  doc.setTextColor(77,158,247); doc.setFontSize(7); doc.setFont('helvetica','bold');
+  doc.text('SKANDAN ENTERPRISE  ·  CK\'S BAKERY FRANCHISE  ·  MONTHLY CONSOLIDATED REPORT',W/2,10,{align:'center'});
+  doc.setTextColor(255,255,255); doc.setFontSize(15); doc.setFont('helvetica','bold');
+  doc.text(`${MONTHS[monthlyMo].toUpperCase()} ${monthlyYr}  —  MONTHLY REPORT`,W/2,22,{align:'center'});
+  doc.setTextColor(100,116,139); doc.setFontSize(7); doc.setFont('helvetica','normal');
+  doc.text(`Generated: ${new Date().toLocaleString('en-IN')}  ·  Role: ${currentUser.role.toUpperCase()}  ·  ${currentUser.name}`,W/2,31,{align:'center'});
+
+  // KPI summary row
+  const kpis=[
+    ['Total Sales',INR(mTot.sales),[16,217,160]],
+    ['Expenses',INR(mTot.exp),[240,84,112]],
+    ['PO Amount',INR(mTot.po),[77,158,247]],
+    ['Cash EOD',INR(mTot.cash),[77,158,247]],
+    ['Net Profit',INR(mTot.profit),mTot.profit>=0?[16,217,160]:[240,84,112]],
+    ['Wastage %',PCT(wPct),[248,167,62]],
+  ];
+  kpis.forEach(([label,val,col],i)=>{
+    const x=8+i*48;
+    doc.setFillColor(20,31,46); doc.roundedRect(x,33,44,7,1,1,'F');
+    doc.setTextColor(100,116,139); doc.setFontSize(5.5); doc.setFont('helvetica','normal');
+    doc.text(label,x+22,37,{align:'center'});
+    doc.setTextColor(...col); doc.setFontSize(7); doc.setFont('helvetica','bold');
+    doc.text(val,x+22,40.5,{align:'center'});
+  });
+
+  // Table data
+  const rows=mEntries.map((e,i)=>{
+    const d=new Date(monthlyYr,monthlyMo,i+1);
+    const ds=`${pad(i+1)} ${MONTHS[monthlyMo]}`;
+    const dn=DAYS[d.getDay()];
+    if(!e) return [ds,dn,'—','—','—','—','—','—','—','—'];
+    const t=totals(e);
+    return [ds,dn,INR(t.sales),INR(e.sales?.cash),INR(e.sales?.card),INR(e.sales?.swiggy),INR(t.expenses),INR(t.po),INR(t.wastage),INR(t.profit)];
+  });
+  rows.push(['MONTHLY TOTAL','',INR(mTot.sales),'','','',INR(mTot.exp),INR(mTot.po),`${INR(mTot.waste)} (${PCT(wPct)})`,INR(mTot.profit)]);
+
+  doc.autoTable({
+    startY:45,
+    head:[['Date','Day','Gross Sales','Cash','Card/UPI','Swiggy/Zomato','Expenses','PO Amount','Wastage','Net Profit']],
+    body:rows,
+    theme:'grid',
+    styles:{fontSize:6.5,cellPadding:2,textColor:[226,232,240],fillColor:[12,17,32],lineColor:[30,41,59],lineWidth:.25,font:'helvetica'},
+    headStyles:{fillColor:[7,9,15],textColor:[77,158,247],fontStyle:'bold',fontSize:7,halign:'left'},
+    alternateRowStyles:{fillColor:[16,24,38]},
+    columnStyles:{0:{fontStyle:'bold',textColor:[255,255,255]},2:{textColor:[16,217,160],fontStyle:'bold'},9:{fontStyle:'bold'}},
+    didParseCell:d=>{
+      if(d.row.index===rows.length-1){
+        d.cell.styles.fillColor=[8,40,20];
+        d.cell.styles.textColor=[16,217,160];
+        d.cell.styles.fontStyle='bold';
+      }
+      if(d.section==='body'&&d.column.index===9&&d.row.index<rows.length-1){
+        const v=parseFloat((rows[d.row.index][9]||'0').replace(/[^0-9.-]/g,''));
+        d.cell.styles.textColor=v>=0?[16,217,160]:[240,84,112];
+      }
+    },
+  });
+
+  doc.save(`Skandan_Enterprise_${MONTHS[monthlyMo]}_${monthlyYr}.pdf`);
+}
+
+// Init topbar date
+document.addEventListener('DOMContentLoaded',()=>{
+  $('topbar-date').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+});
 </script>
 </body>
 </html>
